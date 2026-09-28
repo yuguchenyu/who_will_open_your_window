@@ -1,0 +1,6 @@
+.env
+runtime/
+node_modules/
+
+# 不入库:需求分析文档
+需求分析/
