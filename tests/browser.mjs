@@ -11,8 +11,9 @@ let failNextReply=false;const requests=[];
 const server=createServer({configured:true,base:'https://test.invalid/v1',key:'TEST_ONLY_KEY',model:'test-model'},{db:openDatabase(':memory:'),fetchImpl:async(url,options)=>{
  const body=JSON.parse(options.body);requests.push(body);
  const suggestion=body.messages[0].content.includes('表达助手');
- if(failNextReply&&!suggestion&&body.messages.length>1){failNextReply=false;return new Response('{}',{status:500})}
- const content=suggestion?JSON.stringify({suggestions:[{label:'自然招呼',text:'看到你留下的话题，就想来打个招呼。你会怎么安排这样的周末？'},{label:'继续了解',text:'你平时有喜欢散步的地方吗？'},{label:'轻松接话',text:'有一个不用赶时间的周末就很好。你呢？'}]}):body.messages.length===1?'连接成功':'很高兴收到你的消息。我喜欢傍晚沿河散步，你平时会怎么度过周末？';
+ const guidance=body.messages[0].content.includes('对话理解助手');
+ if(failNextReply&&!suggestion&&!guidance&&body.messages.length>1){failNextReply=false;return new Response('{}',{status:500})}
+ const content=guidance?JSON.stringify({interpretations:[{intent:'想继续了解',confidence:50,reason:'主动提问。'},{intent:'轻松接话',confidence:35,reason:'语气平和。'},{intent:'只是礼貌回应',confidence:15,reason:'仅凭文字无法确认。'}],suggestions:[{label:'分享自己',text:'我也喜欢傍晚散步。'},{label:'确认偏好',text:'你更喜欢怎样的散步路线？'},{label:'轻松回应',text:'听起来很舒服。'}]}):suggestion?JSON.stringify({suggestions:[{label:'自然招呼',text:'看到你留下的话题，就想来打个招呼。你会怎么安排这样的周末？'},{label:'继续了解',text:'你平时有喜欢散步的地方吗？'},{label:'轻松接话',text:'有一个不用赶时间的周末就很好。你呢？'}]}):body.messages.length===1?'连接成功':'很高兴收到你的消息。我喜欢傍晚沿河散步，你平时会怎么度过周末？';
  return new Response(JSON.stringify({choices:[{message:{content}}]}),{status:200,headers:{'Content-Type':'application/json'}});
 }});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${server.address().port}`;
@@ -54,6 +55,10 @@ try{
  await page.getByRole('button',{name:/^递出纸条/}).click();
  await page.getByRole('button',{name:'让 AI 回应这张纸条',exact:true}).click();
  await page.locator('.bubble').filter({hasText:'很高兴收到你的消息'}).waitFor();
+ await page.locator('.guidance .interpretation').first().waitFor();
+ assert.equal(await page.locator('.guidance .interpretation').count(),3);
+ await page.locator('.guidance-option').first().click();
+ assert.equal(await page.getByLabel('聊天消息').inputValue(),'我也喜欢傍晚散步。');
  await page.getByLabel('聊天消息').fill('今天心情不错。');failNextReply=true;
  await page.getByRole('button',{name:/^发送/}).click();
  await page.getByRole('button',{name:'重试回复',exact:true}).waitFor();

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import os from 'node:os';
 import * as serverApi from '../server.mjs';
-import {createServer,makeMessages,parseSuggestions,completion,readConfig} from '../server.mjs';
+import {createServer,makeMessages,parseSuggestions,parseGuidance,completion,readConfig} from '../server.mjs';
 import {openDatabase} from '../lib/db.mjs';
 const listenHost=opts=>serverApi.listenHost(opts);
 const config={configured:true,base:'https://example.invalid/v1',key:'TEST_SECRET_NOT_FOR_BROWSER',model:'test-model'};
@@ -15,10 +15,13 @@ async function signIn(url,username='tester1'){
  return res.headers.getSetCookie()[0].split(';')[0];
 }
 const suggestions={suggestions:[{label:'关心',text:'今天过得怎么样？'},{label:'接话',text:'很高兴听你分享。'},{label:'了解',text:'你喜欢怎样度过周末？'}]};
+const guidance={interpretations:[{intent:'确实没有偏好',confidence:45,reason:'没有更多上下文。'},{intent:'希望你提出选项',confidence:35,reason:'回答比较简短。'},{intent:'想看你是否记得偏好',confidence:20,reason:'只是可能，尚无明确证据。'}],suggestions:suggestions.suggestions};
 const profile={name:'安',habit:'慢热',topic:'今天如何'};
 async function withServer(t,options={}){const server=createServer(config,{db:db(),...options});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.closeAllConnections();server.close(r)}));return `http://127.0.0.1:${server.address().port}`}
 test('private data is excluded from upstream messages',()=>{const body={personId:'xia',messages:[],profile,feelings:{xia:99},reviews:{secret:true},confirmations:['private'],context:'greeting'};const built=JSON.stringify(makeMessages(body,'reply'));assert(!built.includes('99'));assert(!built.includes('secret'));assert(!built.includes('private'));assert(!built.includes(config.key))});
 test('suggestion validation',()=>{assert.equal(parseSuggestions(JSON.stringify(suggestions)).length,3);assert.equal(parseSuggestions('```json\n'+JSON.stringify(suggestions)+'\n```').length,3);assert.throws(()=>parseSuggestions('{}'));assert.throws(()=>parseSuggestions('{broken'));assert.throws(()=>makeMessages({personId:'unknown',messages:[]},'reply'))});
+test('guidance requires bounded hypotheses and relative weights',()=>{assert.equal(parseGuidance(JSON.stringify(guidance)).interpretations.length,3);assert.throws(()=>parseGuidance(JSON.stringify({...guidance,interpretations:guidance.interpretations.map(v=>({...v,confidence:90}))})));assert.throws(()=>parseGuidance('{}'))});
+test('guidance uses authenticated server history, not client supplied text',async t=>{let sent='';const url=await withServer(t,{fetchImpl:async(_u,opt)=>{const body=JSON.parse(opt.body);sent=JSON.stringify(body.messages);const content=sent.includes('对话理解助手')?JSON.stringify(guidance):'随便';return new Response(JSON.stringify({choices:[{message:{content}}]}),{status:200})}});const cookie=await signIn(url);const post=async(path,body)=>fetch(url+path,{method:'POST',headers:{'Content-Type':'application/json',cookie},body:JSON.stringify(body)});assert.equal((await post('/api/guidance',{personId:'xia',messageId:1})).status,400);const note=await(await post('/api/action',{type:'sendNote',personId:'xia',text:'晚饭吃什么？'})).json();await post('/api/action',{type:'startNoteReply',noteId:note.result.id});const reply=await(await post('/api/reply',{personId:'xia'})).json();const latest=reply.state.messages.xia.at(-1);const response=await post('/api/guidance',{personId:'xia',messageId:latest.id,messages:[{role:'user',content:'FORGED_HISTORY'}],feelings:{xia:'PRIVATE_FEELING'}});assert.equal(response.status,200);const result=await response.json();assert.equal(result.interpretations.length,3);assert.equal(result.messageId,latest.id);assert(sent.includes('晚饭吃什么？'));assert(!sent.includes('FORGED_HISTORY'));assert(!sent.includes('PRIVATE_FEELING'));assert.equal((await post('/api/guidance',{personId:'xia',messageId:-1})).status,400)});
 test('HTTP route protections, static files and secret exclusion',async t=>{const url=await withServer(t);const status=await(await fetch(url+'/api/status')).text();assert(!status.includes('test-model'));assert(!status.includes(config.key));assert.equal((await fetch(url+'/.env')).status,404);assert.equal((await fetch(url+'/server.mjs')).status,404);assert.equal((await fetch(url+'/',{redirect:'manual'})).status,302,'logged-out visitors go to the login page');const cross=await fetch(url+'/api/suggestions',{method:'POST',headers:{Origin:'https://other.example','Content-Type':'application/json'},body:'{}'});assert.equal(cross.status,403);assert.equal((await fetch(url+'/api/suggestions',{method:'POST',body:'{}'})).status,403)});
 test('mock upstream validates authorization and successful API flows',async t=>{let sent;const url=await withServer(t,{fetchImpl:async(u,opt)=>{sent={u,opt};return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(suggestions)}}]}),{status:200})}});const cookie=await signIn(url);const r=await fetch(url+'/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json',cookie},body:JSON.stringify({personId:'xia',messages:[],profile})});assert.equal(r.status,200);assert.equal((await r.json()).suggestions.length,3);assert.equal(sent.u,config.base+'/chat/completions');assert.equal(sent.opt.headers.Authorization,'Bearer '+config.key)});
 // --- LAN access (ALLOW_LAN) -------------------------------------------------
@@ -120,7 +123,7 @@ test('everything under /api except status, register and login requires a session
   const url = await withServer(t);
   assert.equal((await fetch(url + '/api/status')).status, 200, 'the login page needs status to render');
   const post = (path) => fetch(url + path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
-  for (const path of ['/api/action', '/api/logout', '/api/reply', '/api/suggestions', '/api/match-profile', '/api/match-retry']) {
+  for (const path of ['/api/action', '/api/logout', '/api/reply', '/api/suggestions', '/api/guidance', '/api/match-profile', '/api/match-retry']) {
     assert.equal((await post(path)).status, 401, `${path} must not be reachable without a session`);
   }
   assert.equal((await fetch(url + '/api/me')).status, 401, 'GET /api/me must not leak the state either');
