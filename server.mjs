@@ -8,7 +8,7 @@ import {PEOPLE} from './public/core.mjs';
 import {ApiError} from './lib/errors.mjs';
 import {openDatabase} from './lib/db.mjs';
 import {readJson, cookieOf, sessionCookie, clearCookie} from './lib/http.mjs';
-import {COOKIE_NAME, SESSION_MS, register, login, logout, resolveSession, failureKey, isLockedOut, recordFailure, clearFailures} from './lib/auth.mjs';
+import {COOKIE_NAME, SESSION_MS, register, login, logout, resolveSession, failureKey, ipFailureKey, isLockedOut, recordFailure, clearFailures, pruneFailures, MAX_IP_FAILURES} from './lib/auth.mjs';
 import {runAction} from './lib/actions.mjs';
 import {readState} from './lib/state.mjs';
 
@@ -137,17 +137,23 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    const body=await readJson(req);
 
    if(url.pathname==='/api/register'){
+    pruneFailures(database);
     const {token,user}=register(database,{username:body.username,password:body.password,userAgent:req.headers['user-agent']||''});
     res.setHeader('Set-Cookie',sessionCookie(COOKIE_NAME,token,SESSION_MS/1000));
     return json(200,{user:publicUser(user)});
    }
 
    if(url.pathname==='/api/login'){
+    pruneFailures(database);
     const key=failureKey(client,body.username);
-    if(isLockedOut(database,key))throw new ApiError('失败次数过多，请 15 分钟后再试。',429,'RATE_LIMITED');
+    const ipKey=ipFailureKey(client);
+    if(isLockedOut(database,key)||isLockedOut(database,ipKey,Date.now(),MAX_IP_FAILURES))
+      throw new ApiError('失败次数过多，请 15 分钟后再试。',429,'RATE_LIMITED');
     let result;
     try{result=login(database,{username:body.username,password:body.password,userAgent:req.headers['user-agent']||''})}
-    catch(error){if(error.code==='BAD_CREDENTIALS')recordFailure(database,key);throw error}
+    catch(error){if(error.code==='BAD_CREDENTIALS'){recordFailure(database,key);recordFailure(database,ipKey)}throw error}
+    // 只清单账号那把锁。IP 那把留着 —— 否则只要手里有一个能登录的账号
+    // （注册是开放的，人人都有），失败几轮就成功登录一次，就能把 IP 计数清零。
     clearFailures(database,key);
     res.setHeader('Set-Cookie',sessionCookie(COOKIE_NAME,result.token,SESSION_MS/1000));
     return json(200,{user:publicUser(result.user),replacedDevice:result.replacedDevice});
@@ -190,6 +196,10 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     // 回复的上下文同样取自服务端，客户端说了不算 —— 否则可以伪造一整段对话历史去诱导模型。
     // 注意这里在 await 之前读状态、await 之后才写回，中间用户可能已经改了状态；
     // finishReply 在 pending 已被清掉时（例如刚屏蔽了该人物）返回 false，不会写脏数据。
+    // 先确认 personId 是三个演示人物之一，再拿去查表：'constructor' 会顺着原型链取到
+    // Object 构造函数（.slice 不是函数），其余无效 id 会在 makeMessages 里抛普通 Error
+    // —— 两条路都汇进外层 catch 变成 500，而坏输入只该拿到 400。
+    if(!PEOPLE.some(p=>p.id===body.personId))throw new ApiError('请选择有效的演示人物。',400,'INVALID_INPUT');
     const history=(state.messages[body.personId]||[]).slice(-16);
     // 纸条来往的第一轮：对话记录还是空的，把那张纸条作为用户这一侧的内容接上去。
     const pending=state.pending[body.personId];

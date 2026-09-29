@@ -71,7 +71,7 @@ test('deviceLabel turns a user agent into something worth showing a person', () 
 });
 
 // --- 登录、单设备顶替、登出、限速 -------------------------------------------
-import {login, resolveSession, logout, failureKey, isLockedOut, recordFailure, clearFailures} from '../lib/auth.mjs';
+import {login, resolveSession, logout, failureKey, isLockedOut, recordFailure, clearFailures, ipFailureKey, pruneFailures, MAX_IP_FAILURES} from '../lib/auth.mjs';
 
 // assert.throws 返回 undefined，拿不到错误对象；这里显式捕获。
 function failure(fn) {
@@ -138,4 +138,25 @@ test('repeated failures lock the account out for a window, then it frees up', ()
   assert(!isLockedOut(db, key, 15 * 60000 + 1), 'the lock must expire on its own');
   clearFailures(db, key);
   assert(!isLockedOut(db, key, 0));
+});
+
+// 只按 IP 计数的第二把锁：换用户名重试也躲不开。阈值比单账号那把高。
+test('the per-IP counter trips on its own, with its own threshold', () => {
+  const db = openDatabase(':memory:');
+  const ip = ipFailureKey('10.0.0.5');
+  assert.notEqual(ip, failureKey('10.0.0.5', 'anything'), 'the IP key must not collide with a username key');
+  assert(!isLockedOut(db, ip, 0, MAX_IP_FAILURES));
+  for (let i = 0; i < MAX_IP_FAILURES; i++) recordFailure(db, ip, 0);
+  assert(isLockedOut(db, ip, 0, MAX_IP_FAILURES));
+  assert(!isLockedOut(db, ip, 15 * 60000 + 1, MAX_IP_FAILURES), 'the IP lock must expire on its own');
+});
+
+// 失败行原来只在同一个 key 被再次尝试时才删，于是每换一个用户名就永久多一行。
+test('stale failure rows are pruned instead of piling up forever', () => {
+  const db = openDatabase(':memory:');
+  const count = () => db.prepare('SELECT COUNT(*) AS n FROM login_attempts').get().n;
+  for (let i = 0; i < 25; i++) recordFailure(db, failureKey('10.0.0.5', 'ghost_' + i), 0);
+  assert.equal(count(), 25);
+  pruneFailures(db, 15 * 60000 + 1);
+  assert.equal(count(), 0, 'rows past the lock window must not be kept');
 });

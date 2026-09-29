@@ -207,3 +207,25 @@ test('login failures are rate limited', async t => {
   for (let i = 0; i < 10; i++) assert.equal((await attempt()).status, 401);
   assert.equal((await attempt()).status, 429, 'the eleventh try must be locked out');
 });
+
+// 每个用户名一把锁的话，换着用户名试就永远不会被锁。
+test('login throttling counts per IP too, so switching usernames does not dodge it', async t => {
+  const url = await withServer(t);
+  const attempt = username => fetch(url + '/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username, password: 'wrong-password'})});
+  const seen = [];
+  for (let i = 0; i < 40; i++) seen.push((await attempt('ghost_' + i)).status);
+  assert(seen.includes(429), 'a run of fresh usernames from one IP must eventually be throttled, saw: ' + [...new Set(seen)].join(','));
+});
+
+// 三个演示人物以外的 personId 必须在读状态之前就拒掉：'constructor' 会顺着原型链
+// 取到 Object 构造函数（.slice 不是函数），其余无效 id 会在 makeMessages 里抛普通
+// Error —— 两条路都汇进外层 catch，变成错误模型承诺不会出现的 500 INTERNAL。
+test('an unknown personId on /api/reply is refused, never a 500', async t => {
+  const url = await withServer(t, {fetchImpl: async () => new Response(JSON.stringify({choices: [{message: {content: '好'}}]}), {status: 200})});
+  const cookie = await signIn(url, 'reply_guard');
+  for (const personId of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'nobody', '']) {
+    const res = await fetch(url + '/api/reply', {method: 'POST', headers: {'Content-Type': 'application/json', cookie}, body: JSON.stringify({personId, context: '打个招呼'})});
+    assert.equal(res.status, 400, `personId ${JSON.stringify(personId)} must be a 400`);
+    assert.equal((await res.json()).code, 'INVALID_INPUT', `personId ${JSON.stringify(personId)} must not surface INTERNAL`);
+  }
+});

@@ -1893,7 +1893,7 @@ async function action(action,id){
 
  if(action==='simulate-reply'){requireAI();const n=await submit(action,id);await generateReply(n.personId);return}
  if(action==='retry'){await generateReply(id);return}
- if(action==='send-chat'){requireAI();await submit(action,id);delete ui.suggestions['chat:'+id];await generateReply(id);return}
+ if(action==='send-chat'){requireAI();await submit(action,id);ui.drafts['chat:'+id]='';delete ui.suggestions['chat:'+id];await generateReply(id);return}
  if(action==='submit-reply-note'){requireAI();const n=await submit(action,id);ui.drafts['reply:'+id]='';closeModal();ui.tab='chat';ui.person=n.personId;await generateReply(n.personId);return}
  if(action==='submit-knock'){if(!document.getElementById('knock-consent').checked)throw new Error('请先确认自己的意愿与双向揭晓授权。');const c=await submit(action,id);openModal('result',c.id);return}
  if(action==='result-done'){closeModal();ui.tab='me';return}

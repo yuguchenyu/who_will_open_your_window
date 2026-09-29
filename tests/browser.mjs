@@ -62,6 +62,8 @@ try{
  await page.getByRole('button',{name:'重试回复',exact:true}).click();
  await page.getByLabel('聊天消息').waitFor();
  assert.equal(await page.locator('.bubble').filter({hasText:'今天心情不错。'}).count(),1);
+ // 发出去的那句不能留在输入框里：重绘会把它填回来，再点一次发送就重复发一遍。
+ assert.equal(await page.getByLabel('聊天消息').inputValue(),'','发送成功后输入框必须清空');
  await page.screenshot({path:path.join(out,'mobile-chat.png'),fullPage:true});
  await page.getByRole('button',{name:'心笺',exact:true}).click();
  await page.locator('#score-input').fill('73');await page.locator('#score-input').dispatchEvent('input');

@@ -114,7 +114,11 @@ async function action(action,id){
 
  if(action==='simulate-reply'){requireAI();const n=await submit(action,id);await generateReply(n.personId);return}
  if(action==='retry'){await generateReply(id);return}
- if(action==='send-chat'){requireAI();await submit(action,id);delete ui.suggestions['chat:'+id];await generateReply(id);return}
+ // 和纸条、回信两条路一样，发出去就把草稿清掉。留着的话重绘会把刚发的那句填回输入框，
+ // 再点一次就重复发送；被迫退出时 stashDrafts 还会把它当成没发出去的草稿存下来。
+ // 和纸条、回信两条路一样，发出去就把草稿清掉。留着的话重绘会把刚发的那句填回输入框，
+ // 再点一次就重复发送；被迫退出时 stashDrafts 还会把它当成没发出去的草稿存下来。
+ if(action==='send-chat'){requireAI();await submit(action,id);ui.drafts['chat:'+id]='';delete ui.suggestions['chat:'+id];await generateReply(id);return}
  if(action==='submit-reply-note'){requireAI();const n=await submit(action,id);ui.drafts['reply:'+id]='';closeModal();ui.tab='chat';ui.person=n.personId;await generateReply(n.personId);return}
  if(action==='submit-knock'){if(!document.getElementById('knock-consent').checked)throw new Error('请先确认自己的意愿与双向揭晓授权。');const c=await submit(action,id);openModal('result',c.id);return}
  if(action==='result-done'){closeModal();ui.tab='me';return}
