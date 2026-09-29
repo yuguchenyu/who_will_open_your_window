@@ -1,6 +1,23 @@
+# secrets: AI key, port, DB_PATH. Never commit.
 .env
+
+# runtime artifacts: the SQLite file (everyone's accounts and chat logs),
+# logs, process state, screenshots, test tools.
 runtime/
+
+# In case DB_PATH points inside the repo, or a log lands somewhere else.
+*.db
+*.db-wal
+*.db-shm
+*.log
+
 node_modules/
+
+# macOS Finder metadata. Appears in any directory you open in Finder.
+.DS_Store
+
+# Superpowers workspace (plan execution ledger and scratch drivers).
+.superpowers/
 
 # 不入库:需求分析文档
 需求分析/
