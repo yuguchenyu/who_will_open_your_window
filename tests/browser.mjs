@@ -42,13 +42,9 @@ try{
  // 用户名规则是 3–20 位字母、数字或下划线，所以时间戳要转成 36 进制再截。
  const account='ua_'+Date.now().toString(36).slice(-8);
  context=await browser.newContext({viewport:{width:390,height:844}});const page=await context.newPage();page.on('pageerror',err=>errors.push(err.message));page.on('console',msg=>{if(msg.type()==='error'&&/Content Security Policy|Refused to execute|Refused to apply/.test(msg.text()))errors.push(msg.text())});
- await register(page,url,account);await page.getByRole('button',{name:'AI 待检查',exact:true}).waitFor();
+ await register(page,url,account);await page.getByText('AI 服务可用',{exact:true}).waitFor();
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');
  await page.screenshot({path:path.join(out,'mobile-meet.png'),fullPage:true});
- await page.getByRole('button',{name:'AI 待检查',exact:true}).click();
- await page.getByRole('button',{name:'检查连接（会调用模型）',exact:true}).click();
- await page.getByRole('heading',{name:'连接已验证'}).waitFor();
- await page.getByRole('button',{name:'关闭面板'}).click();
  await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();
  await page.getByLabel('纸条内容').fill('我喜欢散步，想和你聊聊。');
  await page.getByRole('button',{name:'拾言 · 三个建议',exact:true}).click();
@@ -83,7 +79,7 @@ try{
  await page.locator('#dialog').getByRole('heading',{name:'你的心意，有了回响。',exact:true}).waitFor();
  await page.screenshot({path:path.join(out,'mobile-mutual.png')});
  await page.getByRole('button',{name:'回到我的心笺'}).click();
- await page.reload();await page.getByRole('button',{name:'AI 待检查',exact:true}).waitFor();await page.locator('.bottom-nav').getByRole('button',{name:'我的',exact:true}).click();
+ await page.reload();await page.getByText('AI 服务可用',{exact:true}).waitFor();await page.locator('.bottom-nav').getByRole('button',{name:'我的',exact:true}).click();
  assert((await page.locator('.score').first().innerText()).includes('73'));assert.equal(await page.locator('.result-card').count(),1);
  await page.getByRole('button',{name:'打开 Demo 控制面板'}).click();await page.getByRole('button',{name:'推进 7 天',exact:true}).click();await page.locator('#demo-intent').selectOption('exploring');await page.getByRole('button',{name:'保存为本周期状态'}).click();await page.getByRole('button',{name:'关闭面板'}).click();
  await page.locator('.feeling-card').first().getByRole('button',{name:'回望',exact:true}).click();await page.locator('#review-auth').check();await page.getByRole('button',{name:'确认本周期意愿'}).click();
@@ -103,11 +99,8 @@ try{
  // 这一段要放在换成未配置服务器之前：cookie 只按主机划分、不区分端口，
  // 两个测试服务器都在 127.0.0.1 上，谁后登录谁的 hw_session 就会盖掉另一个。
  await page.setViewportSize({width:390,height:844});
- // 上面整页刷新过，ai.ready 回到 false，得先重新检查一次连接才递得出纸条。
- await page.getByRole('button',{name:'AI 待检查',exact:true}).click();
- await page.getByRole('button',{name:'检查连接（会调用模型）',exact:true}).click();
- await page.getByRole('heading',{name:'连接已验证'}).waitFor();
- await page.getByRole('button',{name:'关闭面板'}).click();
+ // 整页刷新后，服务端会自动告知 AI 是否可用。
+ await page.getByText('AI 服务可用',{exact:true}).waitFor();
  // 重置把联系人清空了，先跟 xia 重新建立一段对话，才有聊天输入框可用。
  await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();
  await page.getByLabel('纸条内容').fill('先把对话建立起来。');
@@ -119,8 +112,7 @@ try{
  const other=await browser.newContext({viewport:{width:390,height:844}});
  const second=await other.newPage();
  await signIn(second,url,account);
- await page.getByRole('button',{name:'AI 已连接',exact:true}).click();
- await page.getByRole('button',{name:'检查连接（会调用模型）',exact:true}).click();
+ await page.locator('.bottom-nav').getByRole('button',{name:'遇见',exact:true}).click();
  await page.waitForURL(u=>u.pathname.startsWith('/login'),{timeout:10000});
  assert((await page.locator('.notice').innerText()).includes('另一台设备'),'the displaced device must be told why');
  // 被顶掉前写在输入框里的话，重新登录后要回来 —— 整页跳转会让它消失，所以先存了 sessionStorage。
@@ -131,8 +123,8 @@ try{
  // Separate unconfigured test server; never use real keys or change the running demo.
  // 这是另一个服务器、另一个库，要在它上面单独注册一个账号。
  const coldBase=`http://127.0.0.1:${unconfigured.address().port}`;
- await register(page,coldBase,'cfg_1');await page.getByRole('button',{name:'配置 AI',exact:true}).waitFor();await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();await page.getByRole('heading',{name:'尚未配置接口'}).waitFor();assert(await page.getByRole('button',{name:'检查连接（会调用模型）',exact:true}).isDisabled());
- await page.screenshot({path:path.join(out,'configuration.png')});
- assert.deepEqual(errors,[]);console.log('PASS: mobile + desktop overflow, login gate, configuration gate, suggestions, editable note, AI reply, failure retry without duplicate, private feelings, authorization, both outcomes, persistence, cycle advance, inbox save/archive, reset, single-device takeover, draft survival.');
+ await register(page,coldBase,'cfg_1');await page.getByText('AI 服务暂不可用',{exact:true}).waitFor();await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();await page.locator('#toast.show').getByText('AI 服务暂不可用，请稍后再试。').waitFor();
+ await page.screenshot({path:path.join(out,'ai-unavailable.png')});
+ assert.deepEqual(errors,[]);console.log('PASS: mobile + desktop overflow, login gate, server-managed AI availability, suggestions, editable note, AI reply, failure retry without duplicate, private feelings, authorization, both outcomes, persistence, cycle advance, inbox save/archive, reset, single-device takeover, draft survival.');
  console.log('Screenshots saved in runtime/screenshots. All model responses in this test were explicitly mocked.');
 }finally{await context?.close();await browser.close();server.closeAllConnections();unconfigured.closeAllConnections();await Promise.all([new Promise(r=>server.close(r)),new Promise(r=>unconfigured.close(r))])}

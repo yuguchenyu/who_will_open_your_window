@@ -19,7 +19,7 @@ const profile={name:'安',habit:'慢热',topic:'今天如何'};
 async function withServer(t,options={}){const server=createServer(config,{db:db(),...options});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.closeAllConnections();server.close(r)}));return `http://127.0.0.1:${server.address().port}`}
 test('private data is excluded from upstream messages',()=>{const body={personId:'xia',messages:[],profile,feelings:{xia:99},reviews:{secret:true},confirmations:['private'],context:'greeting'};const built=JSON.stringify(makeMessages(body,'reply'));assert(!built.includes('99'));assert(!built.includes('secret'));assert(!built.includes('private'));assert(!built.includes(config.key))});
 test('suggestion validation',()=>{assert.equal(parseSuggestions(JSON.stringify(suggestions)).length,3);assert.equal(parseSuggestions('```json\n'+JSON.stringify(suggestions)+'\n```').length,3);assert.throws(()=>parseSuggestions('{}'));assert.throws(()=>parseSuggestions('{broken'));assert.throws(()=>makeMessages({personId:'unknown',messages:[]},'reply'))});
-test('HTTP route protections, static files and secret exclusion',async t=>{const url=await withServer(t);const status=await(await fetch(url+'/api/status')).text();assert(status.includes('test-model'));assert(!status.includes(config.key));assert.equal((await fetch(url+'/.env')).status,404);assert.equal((await fetch(url+'/server.mjs')).status,404);assert.equal((await fetch(url+'/',{redirect:'manual'})).status,302,'logged-out visitors go to the login page');const cross=await fetch(url+'/api/check',{method:'POST',headers:{Origin:'https://other.example','Content-Type':'application/json'},body:'{}'});assert.equal(cross.status,403);assert.equal((await fetch(url+'/api/check',{method:'POST',body:'{}'})).status,403)});
+test('HTTP route protections, static files and secret exclusion',async t=>{const url=await withServer(t);const status=await(await fetch(url+'/api/status')).text();assert(!status.includes('test-model'));assert(!status.includes(config.key));assert.equal((await fetch(url+'/.env')).status,404);assert.equal((await fetch(url+'/server.mjs')).status,404);assert.equal((await fetch(url+'/',{redirect:'manual'})).status,302,'logged-out visitors go to the login page');const cross=await fetch(url+'/api/suggestions',{method:'POST',headers:{Origin:'https://other.example','Content-Type':'application/json'},body:'{}'});assert.equal(cross.status,403);assert.equal((await fetch(url+'/api/suggestions',{method:'POST',body:'{}'})).status,403)});
 test('mock upstream validates authorization and successful API flows',async t=>{let sent;const url=await withServer(t,{fetchImpl:async(u,opt)=>{sent={u,opt};return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(suggestions)}}]}),{status:200})}});const cookie=await signIn(url);const r=await fetch(url+'/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json',cookie},body:JSON.stringify({personId:'xia',messages:[],profile})});assert.equal(r.status,200);assert.equal((await r.json()).suggestions.length,3);assert.equal(sent.u,config.base+'/chat/completions');assert.equal(sent.opt.headers.Authorization,'Bearer '+config.key)});
 // --- LAN access (ALLOW_LAN) -------------------------------------------------
 const lanIps=Object.values(os.networkInterfaces()).flat().filter(i=>i&&i.family==='IPv4'&&!i.internal).map(i=>i.address);
@@ -35,7 +35,7 @@ async function withLanServer(t,overrides={},listenOn='127.0.0.1'){
  t.after(()=>new Promise(r=>{server.closeAllConnections();server.close(r)}));
  return server.address().port;
 }
-// 局域网用例里凡是要 POST /api/check 的，都得先有个账号。
+// 局域网用例里业务 POST 请求需要先有账号。
 async function lanCookie(port){
  const res=await rawRequest(port,'/api/register',{method:'POST',headers:{'Content-Type':'application/json',host:`127.0.0.1:${port}`},body:JSON.stringify({username:'lan_user',password:'password12',selfIntro:'我喜欢阅读和散步，也很重视真诚沟通。',desiredIntro:'希望遇见喜欢阅读、愿意耐心交流的人。',shareForMatching:true})});
  assert.equal(res.status,200,'the LAN test account must register');
@@ -65,12 +65,12 @@ test('a LAN Origin is accepted for POST only when LAN is enabled',async t=>{
  if(!lanIps.length)return t.skip('this machine has no non-internal IPv4 address');
  const json={'Content-Type':'application/json'};
  const off=await withLanServer(t,{lan:false});
- const refused=await rawRequest(off,'/api/check',{method:'POST',headers:{...json,host:`127.0.0.1:${off}`,Origin:`http://${lanIps[0]}:${off}`},body:'{}'});
+ const refused=await rawRequest(off,'/api/action',{method:'POST',headers:{...json,host:`127.0.0.1:${off}`,Origin:`http://${lanIps[0]}:${off}`},body:JSON.stringify({type:'advance',days:1})});
  assert.equal(refused.status,403);
  const on=await withLanServer(t,{lan:true});
- const allowed=await rawRequest(on,'/api/check',{method:'POST',headers:{...json,host:`${lanIps[0]}:${on}`,Origin:`http://${lanIps[0]}:${on}`,cookie:await lanCookie(on)},body:'{}'});
+ const allowed=await rawRequest(on,'/api/action',{method:'POST',headers:{...json,host:`${lanIps[0]}:${on}`,Origin:`http://${lanIps[0]}:${on}`,cookie:await lanCookie(on)},body:JSON.stringify({type:'advance',days:1})});
  assert.equal(allowed.status,200);
- assert.equal(JSON.parse(allowed.body).ok,true);
+ assert.equal(JSON.parse(allowed.body).state.offsetDays,1);
 });
 // --- client IP whitelist (ALLOW_IPS) ----------------------------------------
 test('ALLOW_IPS parses a list, implies LAN mode, and rejects typos',()=>{
@@ -120,7 +120,7 @@ test('everything under /api except status, register and login requires a session
   const url = await withServer(t);
   assert.equal((await fetch(url + '/api/status')).status, 200, 'the login page needs status to render');
   const post = (path) => fetch(url + path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
-  for (const path of ['/api/action', '/api/logout', '/api/reply', '/api/suggestions', '/api/check', '/api/match-profile', '/api/match-retry']) {
+  for (const path of ['/api/action', '/api/logout', '/api/reply', '/api/suggestions', '/api/match-profile', '/api/match-retry']) {
     assert.equal((await post(path)).status, 401, `${path} must not be reachable without a session`);
   }
   assert.equal((await fetch(url + '/api/me')).status, 401, 'GET /api/me must not leak the state either');

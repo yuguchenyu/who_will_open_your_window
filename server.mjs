@@ -132,14 +132,14 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     const file=whitelist[url.pathname];const content=await fs.promises.readFile(path.join(ROOT,'public',file));res.writeHead(200,{...headers,'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(content);
    }
 
-   if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',configured:config.configured,model:config.configured?config.model:'',version:'1.0.0'});
+   if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',version:'1.0.0'});
 
    // Read-only account and recommendation endpoints precede the POST-only gate.
    if(url.pathname==='/api/me'){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
     const who=authenticate(req);
     if(who.denied)return json(401,who.denied);
-    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id),matchingProfile:matchingProfile(database,who.user.id)});
+    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id),matchingProfile:matchingProfile(database,who.user.id),aiAvailable:config.configured});
    }
    if(url.pathname==='/api/matches'){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
@@ -215,11 +215,9 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     }finally{active--}
    }
 
-   if(!['/api/reply','/api/suggestions','/api/check'].includes(url.pathname))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
+   if(!['/api/reply','/api/suggestions'].includes(url.pathname))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
    if(active>=4)throw new ApiError('已有多个请求进行中，请稍后重试。',429,'BUSY');
    active++;try{
-    if(url.pathname==='/api/check'){await completion(config,[{role:'user',content:'请只回复：连接成功'}],fetchImpl,timeout);return json(200,{ok:true})}
-
     // 资料一律取自服务端状态，不接受客户端传进来的 profile。
     const state=readState(database,user.id);
     const profile={name:state.profile.name,habit:state.profile.habit,topic:state.profile.topic};
