@@ -12,6 +12,7 @@ import {COOKIE_NAME, SESSION_MS, register, login, logout, resolveSession, failur
 import {runAction} from './lib/actions.mjs';
 import {readState} from './lib/state.mjs';
 import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags, recommendations} from './lib/matching.mjs';
+import {saveMedia,deleteMedia,mediaStatus,getMedia} from './lib/media.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url));
 export function readConfig(root=ROOT,env=process.env){
@@ -151,13 +152,24 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
     const who=authenticate(req);
     if(who.denied)return json(401,who.denied);
-    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id),matchingProfile:matchingProfile(database,who.user.id),aiAvailable:config.configured});
+    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id),matchingProfile:matchingProfile(database,who.user.id),media:mediaStatus(database,who.user.id),aiAvailable:config.configured});
    }
    if(url.pathname==='/api/matches'){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
     const who=authenticate(req);
     if(who.denied)return json(401,who.denied);
-    return json(200,{matches:recommendations(database,who.user.id)});
+    return json(200,{matches:recommendations(database,who.user.id).map(item=>({...item,hasAvatar:mediaStatus(database,item.id).avatar}))});
+   }
+
+   if(req.method==='GET'&&(url.pathname==='/api/media/background'||url.pathname.startsWith('/api/media/avatar/'))){
+    const who=authenticate(req);if(who.denied)return json(401,who.denied);
+    const background=url.pathname==='/api/media/background';
+    const target=background?who.user.id:url.pathname.slice('/api/media/avatar/'.length);
+    if(!background&&target!==who.user.id&&!recommendations(database,who.user.id).some(item=>item.id===target))return json(404,{error:'图片不存在。',code:'NOT_FOUND'});
+    const media=getMedia(database,target,background?'background':'avatar');
+    if(!media)return json(404,{error:'图片不存在。',code:'NOT_FOUND'});
+    res.writeHead(200,{...headers,'Content-Type':media.mime,'Content-Length':media.bytes.length,'Cache-Control':'private, max-age=300'});
+    return res.end(media.bytes);
    }
 
    if(req.method!=='POST'||!url.pathname.startsWith('/api/'))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
@@ -167,7 +179,7 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    if(req.headers.origin&&!origins.has(req.headers.origin))throw new ApiError('不允许跨站调用。',403,'FORBIDDEN');
    if(req.headers['sec-fetch-site']==='cross-site'||!(req.headers['content-type']||'').startsWith('application/json'))throw new ApiError('仅接受同源 JSON 请求。',403,'FORBIDDEN');
 
-   const body=await readJson(req);
+   const body=await readJson(req,url.pathname==='/api/media'?4_200_000:64000);
 
    if(url.pathname==='/api/register'){
     pruneFailures(database);
@@ -205,6 +217,13 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     logout(database,auth.token);
     res.setHeader('Set-Cookie',clearCookie(COOKIE_NAME));
     return json(200,{ok:true});
+   }
+
+   if(url.pathname==='/api/media'){
+    if(body.action==='save')saveMedia(database,user.id,body.kind,body.data);
+    else if(body.action==='delete')deleteMedia(database,user.id,body.kind);
+    else throw new ApiError('图片操作不正确。');
+    return json(200,{media:mediaStatus(database,user.id)});
    }
 
    if(url.pathname==='/api/match-profile'){
