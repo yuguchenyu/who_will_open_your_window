@@ -26,6 +26,9 @@ try{
   await page.getByRole('button',{name:'还没有账号？注册一个'}).click();
   await page.locator('#username').fill(username);
   await page.locator('#password').fill('password12');
+  await page.locator('#self-intro').fill('我喜欢阅读和散步，也很重视真诚沟通。');
+  await page.locator('#desired-intro').fill('希望遇见喜欢阅读、愿意耐心交流的人。');
+  await page.locator('#share-matching').check();
   await page.getByRole('button',{name:'注册并进入'}).click();
   await page.waitForURL(u=>!u.pathname.startsWith('/login'));
  }
@@ -89,7 +92,7 @@ try{
  await page.getByRole('button',{name:'稍后再看',exact:true}).last().click();await page.locator('.tabs').getByRole('button',{name:'稍后再看',exact:true}).click();await page.getByRole('button',{name:'暂不接话',exact:true}).click();await page.getByRole('button',{name:'已归档',exact:true}).click();await page.locator('.note-card').filter({hasText:'已归档 · 不通知对方'}).waitFor();
  assert(!JSON.stringify(requests).includes('PRIVATE_FEELING_73'));
  await page.getByRole('button',{name:'打开 Demo 控制面板'}).click();await page.getByRole('button',{name:'重置全部演示数据'}).click();await page.getByRole('button',{name:'确认清除并重新开始'}).click();
- assert.equal(await page.locator('.person-card').count(),3);
+ await page.locator('.person-card').first().waitFor();assert.equal(await page.locator('.person-card').count(),3);
  await page.locator('.bottom-nav').getByRole('button',{name:'我的',exact:true}).click();
  assert((await page.locator('.smallprint').filter({hasText:'数据保存在服务端'}).count())>0,'the account must survive a demo reset');
  // 截图要拍的是"遇见"页，切回去。

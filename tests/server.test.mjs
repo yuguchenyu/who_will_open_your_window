@@ -10,7 +10,7 @@ const config={configured:true,base:'https://example.invalid/v1',key:'TEST_SECRET
 const db=()=>openDatabase(':memory:');
 // 注册一个测试账号并返回带 cookie 的请求头。
 async function signIn(url,username='tester1'){
- const res=await fetch(url+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password:'password12'})});
+ const res=await fetch(url+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password:'password12',selfIntro:'我喜欢阅读和散步，也很重视真诚沟通。',desiredIntro:'希望遇见喜欢阅读、愿意耐心交流的人。',shareForMatching:true})});
  assert.equal(res.status,200,'test account registration must succeed');
  return res.headers.getSetCookie()[0].split(';')[0];
 }
@@ -37,7 +37,7 @@ async function withLanServer(t,overrides={},listenOn='127.0.0.1'){
 }
 // 局域网用例里凡是要 POST /api/check 的，都得先有个账号。
 async function lanCookie(port){
- const res=await rawRequest(port,'/api/register',{method:'POST',headers:{'Content-Type':'application/json',host:`127.0.0.1:${port}`},body:JSON.stringify({username:'lan_user',password:'password12'})});
+ const res=await rawRequest(port,'/api/register',{method:'POST',headers:{'Content-Type':'application/json',host:`127.0.0.1:${port}`},body:JSON.stringify({username:'lan_user',password:'password12',selfIntro:'我喜欢阅读和散步，也很重视真诚沟通。',desiredIntro:'希望遇见喜欢阅读、愿意耐心交流的人。',shareForMatching:true})});
  assert.equal(res.status,200,'the LAN test account must register');
  return res.headers['set-cookie'][0].split(';')[0];
 }
@@ -120,10 +120,11 @@ test('everything under /api except status, register and login requires a session
   const url = await withServer(t);
   assert.equal((await fetch(url + '/api/status')).status, 200, 'the login page needs status to render');
   const post = (path) => fetch(url + path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
-  for (const path of ['/api/action', '/api/logout', '/api/reply', '/api/suggestions', '/api/check']) {
+  for (const path of ['/api/action', '/api/logout', '/api/reply', '/api/suggestions', '/api/check', '/api/match-profile', '/api/match-retry']) {
     assert.equal((await post(path)).status, 401, `${path} must not be reachable without a session`);
   }
   assert.equal((await fetch(url + '/api/me')).status, 401, 'GET /api/me must not leak the state either');
+  assert.equal((await fetch(url + '/api/matches')).status, 401, 'recommendations need a session');
   // 方法用错时要给出 405，而不是把人绕到 404 上去猜。
   assert.equal((await post('/api/me')).status, 405);
   // 注册和登录本身当然不需要会话。

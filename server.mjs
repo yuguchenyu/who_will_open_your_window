@@ -11,6 +11,7 @@ import {readJson, cookieOf, sessionCookie, clearCookie} from './lib/http.mjs';
 import {COOKIE_NAME, SESSION_MS, register, login, logout, resolveSession, failureKey, ipFailureKey, isLockedOut, recordFailure, clearFailures, pruneFailures, MAX_IP_FAILURES} from './lib/auth.mjs';
 import {runAction} from './lib/actions.mjs';
 import {readState} from './lib/state.mjs';
+import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags, recommendations} from './lib/matching.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url));
 export function readConfig(root=ROOT,env=process.env){
@@ -77,6 +78,20 @@ export function parseSuggestions(raw){
 export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
  const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));
  let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs'};
+ async function analyzeProfile(userId){
+  if(!config.configured||active>=4)return false;
+  const profile=matchingProfile(database,userId);
+  if(!profile)return false;
+  active++;
+  try{
+   const tags=parseTags(await completion(config,matchingMessages(profile),fetchImpl,timeout));
+   // A profile may have been edited while the model was responding.
+   const latest=matchingProfile(database,userId);
+   if(latest?.selfIntro===profile.selfIntro&&latest.desiredIntro===profile.desiredIntro){storeTags(database,userId,tags);return true}
+  }catch{ /* Keep registration and profile edits usable while AI is unavailable. */ }
+  finally{active--}
+  return false;
+ }
  // 局域网模式下放开的只是本机自己的网卡地址，陌生 Host 和端口不符仍然拒绝。
  const lanNames=config.lan?[...lanAddresses()]:[];
  const allowIps=new Set(config.allowIps||[]);
@@ -119,12 +134,18 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
 
    if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',configured:config.configured,model:config.configured?config.model:'',version:'1.0.0'});
 
-   // /api/me 是唯一的 GET 业务接口，必须在下面那道"只收 POST"的关卡之前处理。
+   // Read-only account and recommendation endpoints precede the POST-only gate.
    if(url.pathname==='/api/me'){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
     const who=authenticate(req);
     if(who.denied)return json(401,who.denied);
-    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id)});
+    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id),matchingProfile:matchingProfile(database,who.user.id)});
+   }
+   if(url.pathname==='/api/matches'){
+    if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
+    const who=authenticate(req);
+    if(who.denied)return json(401,who.denied);
+    return json(200,{matches:recommendations(database,who.user.id)});
    }
 
    if(req.method!=='POST'||!url.pathname.startsWith('/api/'))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
@@ -138,9 +159,13 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
 
    if(url.pathname==='/api/register'){
     pruneFailures(database);
+    const intro=validateIntroduction(body.selfIntro,body.desiredIntro);
+    if(body.shareForMatching!==true)throw new ApiError('请确认自我介绍可展示给匹配对象。');
     const {token,user}=register(database,{username:body.username,password:body.password,userAgent:req.headers['user-agent']||''});
+    saveMatchingProfile(database,user.id,intro);
+    await analyzeProfile(user.id);
     res.setHeader('Set-Cookie',sessionCookie(COOKIE_NAME,token,SESSION_MS/1000));
-    return json(200,{user:publicUser(user)});
+    return json(200,{user:publicUser(user),matchingProfile:matchingProfile(database,user.id)});
    }
 
    if(url.pathname==='/api/login'){
@@ -168,6 +193,18 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     logout(database,auth.token);
     res.setHeader('Set-Cookie',clearCookie(COOKIE_NAME));
     return json(200,{ok:true});
+   }
+
+   if(url.pathname==='/api/match-profile'){
+    if(body.shareForMatching!==true)throw new ApiError('请确认自我介绍可展示给匹配对象。');
+    saveMatchingProfile(database,user.id,body);
+    await analyzeProfile(user.id);
+    return json(200,{matchingProfile:matchingProfile(database,user.id)});
+   }
+   if(url.pathname==='/api/match-retry'){
+    if(!matchingProfile(database,user.id))throw new ApiError('请先填写匹配资料。');
+    await analyzeProfile(user.id);
+    return json(200,{matchingProfile:matchingProfile(database,user.id)});
    }
 
    if(url.pathname==='/api/action'){

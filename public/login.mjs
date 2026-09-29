@@ -19,6 +19,9 @@ function render(error = '') {
      <form id="auth-form">
       <label class="field"><span>用户名</span><input id="username" name="username" autocomplete="username" maxlength="20" required></label>
       <label class="field"><span>密码</span><input id="password" name="password" type="password" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" maxlength="128" required></label>
+     ${mode === 'register' ? `<label class="field"><span>介绍一下自己</span><textarea id="self-intro" class="editor" minlength="10" maxlength="500" required placeholder="你的性格、兴趣，以及喜欢怎样相处……"></textarea></label>
+      <label class="field"><span>你希望遇见怎样的人</span><textarea id="desired-intro" class="editor" minlength="10" maxlength="500" required placeholder="聊得来的话题、期待的相处方式……"></textarea></label>
+      <label class="check-row"><input id="share-matching" type="checkbox" required><span>我同意将自我介绍展示给匹配对象，并将两段介绍发送给已配置的 AI 服务提取标签。</span></label>` : ''}
       <button type="submit" class="btn full"${busy ? ' disabled' : ''}>${busy ? '请稍候…' : mode === 'login' ? '登录' : '注册并进入'}</button>
      </form>
      <button type="button" class="link-btn" id="switch">${mode === 'login' ? '还没有账号？注册一个' : '已经有账号了？去登录'}</button>
@@ -33,16 +36,24 @@ async function submit(event) {
   if (busy) return;
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
+  const selfIntro = mode === 'register' ? document.getElementById('self-intro').value : '';
+  const desiredIntro = mode === 'register' ? document.getElementById('desired-intro').value : '';
+  const shareForMatching = mode === 'register' && document.getElementById('share-matching').checked;
   busy = true;
   render();
   try {
-    await post(mode === 'login' ? '/api/login' : '/api/register', {username, password});
+    await post(mode === 'login' ? '/api/login' : '/api/register', {username, password, ...(mode === 'register' ? {selfIntro, desiredIntro, shareForMatching} : {})});
     location.replace('/');
   } catch (error) {
     busy = false;
     // 把输入过的用户名留着，只清密码。
     render(error.message);
     document.getElementById('username').value = username;
+    if (mode === 'register') {
+      document.getElementById('self-intro').value = selfIntro;
+      document.getElementById('desired-intro').value = desiredIntro;
+      document.getElementById('share-matching').checked = shareForMatching;
+    }
     document.getElementById('password').focus();
   }
 }
