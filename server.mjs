@@ -11,7 +11,7 @@ export function readConfig(root=ROOT,env=process.env){
  const take=k=>env[k]??values[k]??'';const base=take('AI_BASE_URL').replace(/\/+$/,'');const key=take('AI_API_KEY');const model=take('AI_MODEL');let valid=false;
  try{const u=new URL(base);valid=(u.protocol==='https:'||(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)))&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.hostname.endsWith('.example')}catch{}
  const port=Number(take('PORT')||3210);if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('PORT 必须为 1024–65535 的整数。');
- return {base,key,model,port,configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
+ return {base,key,model,port,bindHost:take('BIND_HOST')||'127.0.0.1',publicHost:take('PUBLIC_HOST'),configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
 }
 class ApiError extends Error{constructor(message,status=400,code='INVALID_INPUT'){super(message);this.status=status;this.code=code}}
 function text(value,max){if(typeof value!=='string'||value.length>max)throw new ApiError('输入格式或长度不正确。');return value}
@@ -44,11 +44,11 @@ export function parseSuggestions(raw){
 export function createServer(config,{fetchImpl=fetch,timeout=35000}={}){
  let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/style.css':'style.css'};
  return http.createServer(async(req,res)=>{
-  const port=req.socket.localPort;const origin=`http://127.0.0.1:${port}`;
+  const port=req.socket.localPort;const origin=`http://${req.headers.host}`;
   const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"};
   function json(status,data){res.writeHead(status,{...headers,'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data))}
   try{
-   if(![`127.0.0.1:${port}`,`localhost:${port}`].includes(req.headers.host))throw new ApiError('只允许本地访问。',403,'FORBIDDEN');
+   if(![`127.0.0.1:${port}`,`localhost:${port}`,...(config.publicHost?[`${config.publicHost}:${port}`]:[])].includes(req.headers.host))throw new ApiError('只允许本地访问。',403,'FORBIDDEN');
    const url=new URL(req.url,origin);if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',configured:config.configured,model:config.configured?config.model:'',version:'1.0.0'});
    if(req.method==='GET'&&Object.hasOwn(whitelist,url.pathname)){
     const file=whitelist[url.pathname];const content=await fs.promises.readFile(path.join(ROOT,'public',file));res.writeHead(200,{...headers,'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(content);
@@ -70,5 +70,5 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000}={}){
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const config=readConfig();const server=createServer(config);server.on('error',error=>{console.error(error.code==='EADDRINUSE'?`端口 ${config.port} 已被占用，请修改 .env 中的 PORT。`:'本地服务启动失败。');process.exitCode=1});
- server.listen(config.port,'127.0.0.1',()=>console.log(`Heart Window ready: http://127.0.0.1:${config.port} | AI ${config.configured?'configured':'not configured'}`));
+ server.listen(config.port,config.bindHost,()=>console.log(`Heart Window ready: http://${config.publicHost||'127.0.0.1'}:${config.port} | AI ${config.configured?'configured':'not configured'}`));
 }
