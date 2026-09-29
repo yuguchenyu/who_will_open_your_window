@@ -1,5 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
+import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {PEOPLE} from './public/core.mjs';
@@ -11,8 +13,32 @@ export function readConfig(root=ROOT,env=process.env){
  const take=k=>env[k]??values[k]??'';const base=take('AI_BASE_URL').replace(/\/+$/,'');const key=take('AI_API_KEY');const model=take('AI_MODEL');let valid=false;
  try{const u=new URL(base);valid=(u.protocol==='https:'||(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)))&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.hostname.endsWith('.example')}catch{}
  const port=Number(take('PORT')||3210);if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('PORT 必须为 1024–65535 的整数。');
- return {base,key,model,port,bindHost:take('BIND_HOST')||'127.0.0.1',publicHost:take('PUBLIC_HOST'),configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
+ // ALLOW_IPS 非空时自动开启局域网监听，避免"设了白名单却没生效"的空操作。
+ const allowIps=take('ALLOW_IPS').split(/[\s,]+/).filter(Boolean);
+ for(const ip of allowIps)if(!net.isIP(ip))throw new Error(`ALLOW_IPS 里不是合法的 IP 地址：${ip}`);
+ const lanFlag=take('ALLOW_LAN').toLowerCase();
+ // ALLOW_IPS 非空即监听局域网——白名单要不监听就没有意义。此时 ALLOW_LAN=0 会被覆盖，
+ // 所以启动日志必须如实说明，不能让显式的 0 静默失效（见 accessPolicy）。
+ const lan=['1','true'].includes(lanFlag)||allowIps.length>0;
+ return {base,key,model,port,lan,lanFlag,allowIps,configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
 }
+// 如实描述当前生效的访问策略，供启动日志使用。
+export function accessPolicy(config){
+ const ips=config.allowIps||[];
+ if(ips.length){
+  const overridden=['0','false'].includes((config.lanFlag||'').toLowerCase());
+  return `访问策略：仅允许 ALLOW_IPS 中的设备连接（${ips.join('、')}），本机 127.0.0.1 始终放行。`
+   +(overridden?' 注意：ALLOW_LAN=0 已被忽略——白名单必须先监听局域网才能生效。':'');
+ }
+ if(config.lan)return '访问策略：局域网开放，同网段任何设备都能调用 /api/*，请确认网络可信。';
+ return '访问策略：仅本机 127.0.0.1 可访问。';
+}
+// 只有显式设置 ALLOW_LAN=1 或 ALLOW_IPS 才监听局域网，默认仍然只听本机。
+export function listenHost(config){return config.lan?'0.0.0.0':'127.0.0.1'}
+export function lanAddresses(){const set=new Set();for(const list of Object.values(os.networkInterfaces()))for(const item of list||[])if(item.family==='IPv4'&&!item.internal)set.add(item.address);return set}
+// 校验对端真实 TCP 地址，不信任可伪造的 X-Forwarded-For。
+export function clientIp(req){const raw=req.socket.remoteAddress||'';return raw.startsWith('::ffff:')?raw.slice(7):raw}
+const LOOPBACK_IPS=new Set(['127.0.0.1','::1']);
 class ApiError extends Error{constructor(message,status=400,code='INVALID_INPUT'){super(message);this.status=status;this.code=code}}
 function text(value,max){if(typeof value!=='string'||value.length>max)throw new ApiError('输入格式或长度不正确。');return value}
 export function makeMessages(body,kind){
@@ -43,18 +69,25 @@ export function parseSuggestions(raw){
 }
 export function createServer(config,{fetchImpl=fetch,timeout=35000}={}){
  let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/style.css':'style.css'};
+ // 局域网模式下放开的只是本机自己的网卡地址，陌生 Host 和端口不符仍然拒绝。
+ const lanNames=config.lan?[...lanAddresses()]:[];
+ const allowIps=new Set(config.allowIps||[]);
  return http.createServer(async(req,res)=>{
-  const port=req.socket.localPort;const origin=`http://${req.headers.host}`;
+  const port=req.socket.localPort;const origin=`http://127.0.0.1:${port}`;
+  const hosts=new Set([`127.0.0.1:${port}`,`localhost:${port}`,...lanNames.map(ip=>`${ip}:${port}`)]);
   const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"};
   function json(status,data){res.writeHead(status,{...headers,'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data))}
   try{
-   if(![`127.0.0.1:${port}`,`localhost:${port}`,...(config.publicHost?[`${config.publicHost}:${port}`]:[])].includes(req.headers.host))throw new ApiError('只允许本地访问。',403,'FORBIDDEN');
+   const client=clientIp(req);
+   if(allowIps.size&&!LOOPBACK_IPS.has(client)&&!allowIps.has(client))throw new ApiError(`该设备（${client}）不在 ALLOW_IPS 白名单中。`,403,'FORBIDDEN');
+   if(!hosts.has(req.headers.host))throw new ApiError('只允许本地访问。',403,'FORBIDDEN');
    const url=new URL(req.url,origin);if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',configured:config.configured,model:config.configured?config.model:'',version:'1.0.0'});
    if(req.method==='GET'&&Object.hasOwn(whitelist,url.pathname)){
     const file=whitelist[url.pathname];const content=await fs.promises.readFile(path.join(ROOT,'public',file));res.writeHead(200,{...headers,'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(content);
    }
    if(req.method!=='POST'||!['/api/check','/api/suggestions','/api/reply'].includes(url.pathname))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
-   if(req.headers.origin&&!([origin,`http://localhost:${port}`].includes(req.headers.origin)))throw new ApiError('不允许跨站调用。',403,'FORBIDDEN');
+   const origins=new Set([origin,`http://localhost:${port}`,...lanNames.map(ip=>`http://${ip}:${port}`)]);
+   if(req.headers.origin&&!origins.has(req.headers.origin))throw new ApiError('不允许跨站调用。',403,'FORBIDDEN');
    if(req.headers['sec-fetch-site']==='cross-site'||!(req.headers['content-type']||'').startsWith('application/json'))throw new ApiError('仅接受同源 JSON 请求。',403,'FORBIDDEN');
    if(active>=4)throw new ApiError('已有多个请求进行中，请稍后重试。',429,'BUSY');
    const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>64000)throw new ApiError('请求内容过长。',413);chunks.push(chunk)}const raw=Buffer.concat(chunks).toString('utf8');
@@ -70,5 +103,9 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000}={}){
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const config=readConfig();const server=createServer(config);server.on('error',error=>{console.error(error.code==='EADDRINUSE'?`端口 ${config.port} 已被占用，请修改 .env 中的 PORT。`:'本地服务启动失败。');process.exitCode=1});
- server.listen(config.port,config.bindHost,()=>console.log(`Heart Window ready: http://${config.publicHost||'127.0.0.1'}:${config.port} | AI ${config.configured?'configured':'not configured'}`));
+ server.listen(config.port,listenHost(config),()=>{
+  console.log(`Heart Window ready: http://127.0.0.1:${config.port} | AI ${config.configured?'configured':'not configured'}`);
+  console.log(accessPolicy(config));
+  if(config.lan)for(const ip of lanAddresses())console.log(`LAN: http://${ip}:${config.port}`);
+ });
 }
