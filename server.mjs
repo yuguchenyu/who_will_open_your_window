@@ -5,6 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {PEOPLE} from './public/core.mjs';
+import {ApiError} from './lib/errors.mjs';
+import {openDatabase} from './lib/db.mjs';
+import {readJson, cookieOf, sessionCookie, clearCookie} from './lib/http.mjs';
+import {COOKIE_NAME, SESSION_MS, register, login, logout, resolveSession, failureKey, isLockedOut, recordFailure, clearFailures} from './lib/auth.mjs';
+import {runAction} from './lib/actions.mjs';
+import {readState} from './lib/state.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url));
 export function readConfig(root=ROOT,env=process.env){
@@ -20,7 +26,9 @@ export function readConfig(root=ROOT,env=process.env){
  // ALLOW_IPS 非空即监听局域网——白名单要不监听就没有意义。此时 ALLOW_LAN=0 会被覆盖，
  // 所以启动日志必须如实说明，不能让显式的 0 静默失效（见 accessPolicy）。
  const lan=['1','true'].includes(lanFlag)||allowIps.length>0;
- return {base,key,model,port,lan,lanFlag,allowIps,configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
+ // 数据库默认落在项目的 runtime/ 下，那个目录已经在 .gitignore 里 —— 别把大家的账号提交上去。
+ const dbPath=take('DB_PATH')||path.join(root,'runtime','app.db');
+ return {base,key,model,port,lan,lanFlag,allowIps,dbPath,configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
 }
 // 如实描述当前生效的访问策略，供启动日志使用。
 export function accessPolicy(config){
@@ -39,7 +47,6 @@ export function lanAddresses(){const set=new Set();for(const list of Object.valu
 // 校验对端真实 TCP 地址，不信任可伪造的 X-Forwarded-For。
 export function clientIp(req){const raw=req.socket.remoteAddress||'';return raw.startsWith('::ffff:')?raw.slice(7):raw}
 const LOOPBACK_IPS=new Set(['127.0.0.1','::1']);
-class ApiError extends Error{constructor(message,status=400,code='INVALID_INPUT'){super(message);this.status=status;this.code=code}}
 function text(value,max){if(typeof value!=='string'||value.length>max)throw new ApiError('输入格式或长度不正确。');return value}
 export function makeMessages(body,kind){
  const p=PEOPLE.find(p=>p.id===body.personId);if(!p)throw new ApiError('请选择有效的演示人物。');
@@ -67,8 +74,9 @@ export function parseSuggestions(raw){
  if(!Array.isArray(obj?.suggestions)||obj.suggestions.length!==3||obj.suggestions.some(v=>typeof v?.label!=='string'||!v.label.trim()||v.label.length>12||typeof v.text!=='string'||!v.text.trim()||Array.from(v.text).length>100))throw new ApiError('模型未提供三个有效的简短建议，请重新生成。',502,'FORMAT');
  return obj.suggestions.map(v=>({label:v.label.trim(),text:v.text.trim()}));
 }
-export function createServer(config,{fetchImpl=fetch,timeout=35000}={}){
- let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/style.css':'style.css'};
+export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
+ const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));
+ let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs'};
  // 局域网模式下放开的只是本机自己的网卡地址，陌生 Host 和端口不符仍然拒绝。
  const lanNames=config.lan?[...lanAddresses()]:[];
  const allowIps=new Set(config.allowIps||[]);
@@ -77,26 +85,123 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000}={}){
   const hosts=new Set([`127.0.0.1:${port}`,`localhost:${port}`,...lanNames.map(ip=>`${ip}:${port}`)]);
   const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"};
   function json(status,data){res.writeHead(status,{...headers,'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data))}
+  function redirect(res,location){res.writeHead(302,{...headers,Location:location});res.end()}
+  // 只把能给浏览器看的字段发出去 —— users 表里还有 password_hash 和 salt。
+  const publicUser=user=>({id:user.id,username:user.username,name:user.name});
+  // 解析当前请求的会话。要么返回 {user,token}，要么返回 {denied}。
+  // "被顶掉"要和"从没登录过"分开，因为前者需要给用户一句解释，后者不需要。
+  function authenticate(req){
+   const token=cookieOf(req,COOKIE_NAME);
+   const found=resolveSession(database,token);
+   if(found.user)return {user:found.user,token};
+   if(found.reason==='replaced')return {denied:{error:'你的账号已在另一台设备登录，请重新登录。',code:'SESSION_REPLACED'}};
+   return {denied:{error:'请先登录。',code:'UNAUTHENTICATED'}};
+  }
   try{
    const client=clientIp(req);
    if(allowIps.size&&!LOOPBACK_IPS.has(client)&&!allowIps.has(client))throw new ApiError(`该设备（${client}）不在 ALLOW_IPS 白名单中。`,403,'FORBIDDEN');
    if(!hosts.has(req.headers.host))throw new ApiError('只允许本地访问。',403,'FORBIDDEN');
-   const url=new URL(req.url,origin);if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',configured:config.configured,model:config.configured?config.model:'',version:'1.0.0'});
+   const url=new URL(req.url,origin);
+
+   // —— 页面跳转 ——
+   // 页面用 302 而不是 401：这是浏览器地址栏访问，跳转比一个 JSON 错误有用得多。
+   // 被顶掉的人直接刷新页面时，查询串把原因带过去，登录页才能解释一句为什么。
+   if(req.method==='GET'){
+    const who=authenticate(req);
+    if((url.pathname==='/'||url.pathname==='/index.html')&&!who.user)return redirect(res,who.denied?.code==='SESSION_REPLACED'?'/login.html?reason=replaced':'/login.html');
+    if(url.pathname==='/login.html'&&who.user)return redirect(res,'/');
+   }
+
+   // —— 静态文件 ——
    if(req.method==='GET'&&Object.hasOwn(whitelist,url.pathname)){
     const file=whitelist[url.pathname];const content=await fs.promises.readFile(path.join(ROOT,'public',file));res.writeHead(200,{...headers,'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(content);
    }
-   if(req.method!=='POST'||!['/api/check','/api/suggestions','/api/reply'].includes(url.pathname))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
+
+   if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',configured:config.configured,model:config.configured?config.model:'',version:'1.0.0'});
+
+   // /api/me 是唯一的 GET 业务接口，必须在下面那道"只收 POST"的关卡之前处理。
+   if(url.pathname==='/api/me'){
+    if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
+    const who=authenticate(req);
+    if(who.denied)return json(401,who.denied);
+    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id)});
+   }
+
+   if(req.method!=='POST'||!url.pathname.startsWith('/api/'))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
+
+   // 同源与 Content-Type 检查保留，对登录接口一样适用。
    const origins=new Set([origin,`http://localhost:${port}`,...lanNames.map(ip=>`http://${ip}:${port}`)]);
    if(req.headers.origin&&!origins.has(req.headers.origin))throw new ApiError('不允许跨站调用。',403,'FORBIDDEN');
    if(req.headers['sec-fetch-site']==='cross-site'||!(req.headers['content-type']||'').startsWith('application/json'))throw new ApiError('仅接受同源 JSON 请求。',403,'FORBIDDEN');
+
+   const body=await readJson(req);
+
+   if(url.pathname==='/api/register'){
+    const {token,user}=register(database,{username:body.username,password:body.password,userAgent:req.headers['user-agent']||''});
+    res.setHeader('Set-Cookie',sessionCookie(COOKIE_NAME,token,SESSION_MS/1000));
+    return json(200,{user:publicUser(user)});
+   }
+
+   if(url.pathname==='/api/login'){
+    const key=failureKey(client,body.username);
+    if(isLockedOut(database,key))throw new ApiError('失败次数过多，请 15 分钟后再试。',429,'RATE_LIMITED');
+    let result;
+    try{result=login(database,{username:body.username,password:body.password,userAgent:req.headers['user-agent']||''})}
+    catch(error){if(error.code==='BAD_CREDENTIALS')recordFailure(database,key);throw error}
+    clearFailures(database,key);
+    res.setHeader('Set-Cookie',sessionCookie(COOKIE_NAME,result.token,SESSION_MS/1000));
+    return json(200,{user:publicUser(result.user),replacedDevice:result.replacedDevice});
+   }
+
+   // —— 以下全部需要登录 ——
+   const auth=authenticate(req);
+   if(auth.denied)return json(401,auth.denied);
+   const user=auth.user;
+
+   if(url.pathname==='/api/logout'){
+    logout(database,auth.token);
+    res.setHeader('Set-Cookie',clearCookie(COOKIE_NAME));
+    return json(200,{ok:true});
+   }
+
+   if(url.pathname==='/api/action'){
+    if(active>=4)throw new ApiError('已有多个请求进行中，请稍后重试。',429,'BUSY');
+    active++;try{
+     const {state,result}=runAction(database,user,body.type,body);
+     return json(200,{state,result:result===undefined?null:result});
+    }finally{active--}
+   }
+
+   if(!['/api/reply','/api/suggestions','/api/check'].includes(url.pathname))return json(404,{error:'页面或接口不存在。',code:'NOT_FOUND'});
    if(active>=4)throw new ApiError('已有多个请求进行中，请稍后重试。',429,'BUSY');
-   const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>64000)throw new ApiError('请求内容过长。',413);chunks.push(chunk)}const raw=Buffer.concat(chunks).toString('utf8');
-   let body;try{body=JSON.parse(raw||'{}')}catch{throw new ApiError('请求不是有效 JSON。')}
-   if(!body||typeof body!=='object'||Array.isArray(body))throw new ApiError('请求格式错误。');
    active++;try{
     if(url.pathname==='/api/check'){await completion(config,[{role:'user',content:'请只回复：连接成功'}],fetchImpl,timeout);return json(200,{ok:true})}
-    const kind=url.pathname==='/api/suggestions'?'suggestions':'reply';const result=await completion(config,makeMessages(body,kind),fetchImpl,timeout);
-    return json(200,kind==='suggestions'?{suggestions:parseSuggestions(result)}:{text:result.slice(0,3000)});
+
+    // 资料一律取自服务端状态，不接受客户端传进来的 profile。
+    const state=readState(database,user.id);
+    const profile={name:state.profile.name,habit:state.profile.habit,topic:state.profile.topic};
+
+    if(url.pathname==='/api/suggestions'){
+     // 建议不落库，是纯读操作，上下文由客户端给（它可能正在写一条还没发出去的话）。
+     const result=await completion(config,makeMessages({...body,profile},'suggestions'),fetchImpl,timeout);
+     return json(200,{suggestions:parseSuggestions(result)});
+    }
+
+    // 回复的上下文同样取自服务端，客户端说了不算 —— 否则可以伪造一整段对话历史去诱导模型。
+    // 注意这里在 await 之前读状态、await 之后才写回，中间用户可能已经改了状态；
+    // finishReply 在 pending 已被清掉时（例如刚屏蔽了该人物）返回 false，不会写脏数据。
+    const history=(state.messages[body.personId]||[]).slice(-16);
+    // 纸条来往的第一轮：对话记录还是空的，把那张纸条作为用户这一侧的内容接上去。
+    const pending=state.pending[body.personId];
+    let context=body.context;
+    if(pending?.kind==='note'){
+     const note=state.notes.find(n=>n.id===pending.noteId);
+     if(note)history.push({role:'user',content:note.text});
+     context='对方回应你主页上话题后递来的第一张纸条，请礼貌接话。';
+    }
+    const result=await completion(config,makeMessages({...body,messages:history,context,profile},'reply'),fetchImpl,timeout);
+    const applied=runAction(database,user,'finishReply',{personId:body.personId,text:result},Date.now(),{internal:true});
+    return json(200,{state:applied.state,text:result.slice(0,3000)});
    }finally{active--}
   }catch(error){json(error.status||500,{error:error instanceof ApiError?error.message:'本地服务发生错误，请重试。',code:error.code||'INTERNAL'})}
  });

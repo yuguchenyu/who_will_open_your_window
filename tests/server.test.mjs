@@ -4,28 +4,42 @@ import http from 'node:http';
 import os from 'node:os';
 import * as serverApi from '../server.mjs';
 import {createServer,makeMessages,parseSuggestions,completion,readConfig} from '../server.mjs';
+import {openDatabase} from '../lib/db.mjs';
 const listenHost=opts=>serverApi.listenHost(opts);
 const config={configured:true,base:'https://example.invalid/v1',key:'TEST_SECRET_NOT_FOR_BROWSER',model:'test-model'};
+const db=()=>openDatabase(':memory:');
+// 注册一个测试账号并返回带 cookie 的请求头。
+async function signIn(url,username='tester1'){
+ const res=await fetch(url+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password:'password12'})});
+ assert.equal(res.status,200,'test account registration must succeed');
+ return res.headers.getSetCookie()[0].split(';')[0];
+}
 const suggestions={suggestions:[{label:'关心',text:'今天过得怎么样？'},{label:'接话',text:'很高兴听你分享。'},{label:'了解',text:'你喜欢怎样度过周末？'}]};
 const profile={name:'安',habit:'慢热',topic:'今天如何'};
-async function withServer(t,options={}){const server=createServer(config,options);await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.closeAllConnections();server.close(r)}));return `http://127.0.0.1:${server.address().port}`}
+async function withServer(t,options={}){const server=createServer(config,{db:db(),...options});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.closeAllConnections();server.close(r)}));return `http://127.0.0.1:${server.address().port}`}
 test('private data is excluded from upstream messages',()=>{const body={personId:'xia',messages:[],profile,feelings:{xia:99},reviews:{secret:true},confirmations:['private'],context:'greeting'};const built=JSON.stringify(makeMessages(body,'reply'));assert(!built.includes('99'));assert(!built.includes('secret'));assert(!built.includes('private'));assert(!built.includes(config.key))});
 test('suggestion validation',()=>{assert.equal(parseSuggestions(JSON.stringify(suggestions)).length,3);assert.equal(parseSuggestions('```json\n'+JSON.stringify(suggestions)+'\n```').length,3);assert.throws(()=>parseSuggestions('{}'));assert.throws(()=>parseSuggestions('{broken'));assert.throws(()=>makeMessages({personId:'unknown',messages:[]},'reply'))});
-test('HTTP route protections, static files and secret exclusion',async t=>{const url=await withServer(t);const status=await(await fetch(url+'/api/status')).text();assert(status.includes('test-model'));assert(!status.includes(config.key));assert.equal((await fetch(url+'/.env')).status,404);assert.equal((await fetch(url+'/server.mjs')).status,404);assert.equal((await fetch(url+'/')).status,200);const cross=await fetch(url+'/api/check',{method:'POST',headers:{Origin:'https://other.example','Content-Type':'application/json'},body:'{}'});assert.equal(cross.status,403);assert.equal((await fetch(url+'/api/check',{method:'POST',body:'{}'})).status,403)});
-test('mock upstream validates authorization and successful API flows',async t=>{let sent;const url=await withServer(t,{fetchImpl:async(u,opt)=>{sent={u,opt};return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(suggestions)}}]}),{status:200})}});const r=await fetch(url+'/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:'xia',messages:[],profile})});assert.equal(r.status,200);assert.equal((await r.json()).suggestions.length,3);assert.equal(sent.u,config.base+'/chat/completions');assert.equal(sent.opt.headers.Authorization,'Bearer '+config.key)});
+test('HTTP route protections, static files and secret exclusion',async t=>{const url=await withServer(t);const status=await(await fetch(url+'/api/status')).text();assert(status.includes('test-model'));assert(!status.includes(config.key));assert.equal((await fetch(url+'/.env')).status,404);assert.equal((await fetch(url+'/server.mjs')).status,404);assert.equal((await fetch(url+'/',{redirect:'manual'})).status,302,'logged-out visitors go to the login page');const cross=await fetch(url+'/api/check',{method:'POST',headers:{Origin:'https://other.example','Content-Type':'application/json'},body:'{}'});assert.equal(cross.status,403);assert.equal((await fetch(url+'/api/check',{method:'POST',body:'{}'})).status,403)});
+test('mock upstream validates authorization and successful API flows',async t=>{let sent;const url=await withServer(t,{fetchImpl:async(u,opt)=>{sent={u,opt};return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(suggestions)}}]}),{status:200})}});const cookie=await signIn(url);const r=await fetch(url+'/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json',cookie},body:JSON.stringify({personId:'xia',messages:[],profile})});assert.equal(r.status,200);assert.equal((await r.json()).suggestions.length,3);assert.equal(sent.u,config.base+'/chat/completions');assert.equal(sent.opt.headers.Authorization,'Bearer '+config.key)});
 // --- LAN access (ALLOW_LAN) -------------------------------------------------
 const lanIps=Object.values(os.networkInterfaces()).flat().filter(i=>i&&i.family==='IPv4'&&!i.internal).map(i=>i.address);
 function rawRequest(port,pathname,{method='GET',headers={},body,connectTo='127.0.0.1',localAddress}={}){
  return new Promise((resolve,reject)=>{
-  const req=http.request({host:connectTo,port,path:pathname,method,headers,localAddress},res=>{let text='';res.on('data',c=>text+=c);res.on('end',()=>resolve({status:res.statusCode,body:text}))});
+  const req=http.request({host:connectTo,port,path:pathname,method,headers,localAddress},res=>{let text='';res.on('data',c=>text+=c);res.on('end',()=>resolve({status:res.statusCode,body:text,headers:res.headers}))});
   req.on('error',reject);if(body)req.write(body);req.end();
  });
 }
 async function withLanServer(t,overrides={},listenOn='127.0.0.1'){
- const server=createServer({...config,...overrides},{fetchImpl:async()=>new Response(JSON.stringify({choices:[{message:{content:'连接成功'}}]}),{status:200})});
+ const server=createServer({...config,...overrides},{db:db(),fetchImpl:async()=>new Response(JSON.stringify({choices:[{message:{content:'连接成功'}}]}),{status:200})});
  await new Promise(r=>server.listen(0,listenOn,r));
  t.after(()=>new Promise(r=>{server.closeAllConnections();server.close(r)}));
  return server.address().port;
+}
+// 局域网用例里凡是要 POST /api/check 的，都得先有个账号。
+async function lanCookie(port){
+ const res=await rawRequest(port,'/api/register',{method:'POST',headers:{'Content-Type':'application/json',host:`127.0.0.1:${port}`},body:JSON.stringify({username:'lan_user',password:'password12'})});
+ assert.equal(res.status,200,'the LAN test account must register');
+ return res.headers['set-cookie'][0].split(';')[0];
 }
 test('ALLOW_LAN is opt-in and defaults to loopback-only binding',()=>{
  assert.equal(readConfig('/nonexistent-root',{}).lan,false);
@@ -54,7 +68,7 @@ test('a LAN Origin is accepted for POST only when LAN is enabled',async t=>{
  const refused=await rawRequest(off,'/api/check',{method:'POST',headers:{...json,host:`127.0.0.1:${off}`,Origin:`http://${lanIps[0]}:${off}`},body:'{}'});
  assert.equal(refused.status,403);
  const on=await withLanServer(t,{lan:true});
- const allowed=await rawRequest(on,'/api/check',{method:'POST',headers:{...json,host:`${lanIps[0]}:${on}`,Origin:`http://${lanIps[0]}:${on}`},body:'{}'});
+ const allowed=await rawRequest(on,'/api/check',{method:'POST',headers:{...json,host:`${lanIps[0]}:${on}`,Origin:`http://${lanIps[0]}:${on}`,cookie:await lanCookie(on)},body:'{}'});
  assert.equal(allowed.status,200);
  assert.equal(JSON.parse(allowed.body).ok,true);
 });
@@ -100,3 +114,96 @@ test('an ALLOW_LAN=0 overridden by ALLOW_IPS is reported, not silently ignored',
  assert.equal(readConfig('/nonexistent-root',{ALLOW_LAN:'0'}).lan,false,'ALLOW_LAN=0 on its own must still work');
 });
 test('missing config, auth, rate limit, malformed output and network error',async()=>{await assert.rejects(()=>completion({...config,configured:false},[]),e=>e.code==='NOT_CONFIGURED');for(const [status,code] of [[401,'AUTH'],[429,'RATE_LIMIT'],[500,'UPSTREAM']])await assert.rejects(()=>completion(config,[],async()=>new Response('private vendor response '+config.key,{status})),e=>e.code===code&&!e.message.includes(config.key));await assert.rejects(()=>completion(config,[],async()=>new Response('oops')),e=>e.code==='FORMAT');await assert.rejects(()=>completion(config,[],async()=>{throw new Error(config.key)}),e=>e.code==='NETWORK'&&!e.message.includes(config.key));await assert.rejects(()=>completion(config,[],async()=>{throw new DOMException('timeout','TimeoutError')}),e=>e.code==='TIMEOUT')});
+
+// --- 鉴权、单设备顶替、跨账号隔离 ---------------------------------------------
+test('everything under /api except status, register and login requires a session', async t => {
+  const url = await withServer(t);
+  assert.equal((await fetch(url + '/api/status')).status, 200, 'the login page needs status to render');
+  const post = (path) => fetch(url + path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+  for (const path of ['/api/action', '/api/logout', '/api/reply', '/api/suggestions', '/api/check']) {
+    assert.equal((await post(path)).status, 401, `${path} must not be reachable without a session`);
+  }
+  assert.equal((await fetch(url + '/api/me')).status, 401, 'GET /api/me must not leak the state either');
+  // 方法用错时要给出 405，而不是把人绕到 404 上去猜。
+  assert.equal((await post('/api/me')).status, 405);
+  // 注册和登录本身当然不需要会话。
+  assert.equal((await post('/api/login')).status, 401, 'a login attempt with no credentials fails on the credentials, not on the session');
+});
+
+test('the login page is served to visitors and skipped once signed in', async t => {
+  const url = await withServer(t);
+  const root = await fetch(url + '/', {redirect: 'manual'});
+  assert.equal(root.status, 302);
+  assert.equal(root.headers.get('location'), '/login.html');
+  assert.equal((await fetch(url + '/login.html')).status, 200);
+  assert.equal((await fetch(url + '/login.mjs')).status, 200);
+  const cookie = await signIn(url);
+  const back = await fetch(url + '/login.html', {headers: {cookie}, redirect: 'manual'});
+  assert.equal(back.status, 302);
+  assert.equal(back.headers.get('location'), '/');
+  assert.equal((await fetch(url + '/', {headers: {cookie}})).status, 200);
+  // 被顶掉的设备直接刷新页面时，跳转链接里要带上原因，登录页才好解释。
+  const kicked = await signIn(url, 'kicked1');
+  await fetch(url + '/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: 'kicked1', password: 'password12'})});
+  assert.equal((await fetch(url + '/', {headers: {cookie: kicked}, redirect: 'manual'})).headers.get('location'), '/login.html?reason=replaced');
+});
+
+test('a displaced device is told why on its next request', async t => {
+  const url = await withServer(t);
+  const first = await signIn(url, 'tester1');
+  const second = await fetch(url + '/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: 'tester1', password: 'password12'})});
+  assert.equal(second.status, 200);
+  const res = await fetch(url + '/api/me', {headers: {cookie: first}});
+  assert.equal(res.status, 401);
+  const body = await res.json();
+  assert.equal(body.code, 'SESSION_REPLACED', 'the code is what lets the client explain itself instead of silently logging out');
+  assert.match(body.error, /另一台设备/);
+});
+
+test('a stale tab cannot roll back another tab’s work', async t => {
+  // 同一浏览器开两个标签页时共用同一个 cookie，"一账号一设备"管不到它们。
+  // 但客户端只发动作、不发状态，所以后发的那个不会把先发的覆盖掉。
+  const url = await withServer(t);
+  const cookie = await signIn(url);
+  const stale = await (await fetch(url + '/api/me', {headers: {cookie}})).json();
+  const post = (payload) => fetch(url + '/api/action', {method: 'POST', headers: {'Content-Type': 'application/json', cookie}, body: JSON.stringify(payload)});
+  await post({type: 'sendNote', personId: 'xia', text: '标签页 A 写的'});
+  await post({type: 'sendNote', personId: 'yu', text: '标签页 B 写的'});
+  const now = await (await fetch(url + '/api/me', {headers: {cookie}})).json();
+  assert.equal(now.state.notes.length, 2, 'both tabs’ notes must survive');
+  assert.equal(stale.state.notes.length, 0, 'the stale copy is simply out of date, which is harmless — it is never sent back');
+});
+
+test('two accounts cannot see each other', async t => {
+  const url = await withServer(t);
+  const a = await signIn(url, 'alice1');
+  const b = await signIn(url, 'bob_22');
+  const post = (cookie, payload) => fetch(url + '/api/action', {method: 'POST', headers: {'Content-Type': 'application/json', cookie}, body: JSON.stringify(payload)});
+  assert.equal((await post(a, {type: 'sendNote', personId: 'xia', text: '爱丽丝的纸条'})).status, 200);
+  const seen = await (await fetch(url + '/api/me', {headers: {cookie: b}})).json();
+  assert.equal(seen.state.notes.length, 0, 'bob must not see alice notes');
+  assert(!JSON.stringify(seen).includes('爱丽丝的纸条'));
+});
+
+test('logout drops the session immediately', async t => {
+  const url = await withServer(t);
+  const cookie = await signIn(url);
+  assert.equal((await fetch(url + '/api/logout', {method: 'POST', headers: {'Content-Type': 'application/json', cookie}})).status, 200);
+  assert.equal((await fetch(url + '/api/me', {headers: {cookie}})).status, 401);
+});
+
+test('a user cannot smuggle in an action the server does not have', async t => {
+  const url = await withServer(t);
+  const cookie = await signIn(url);
+  const res = await fetch(url + '/api/action', {method: 'POST', headers: {'Content-Type': 'application/json', cookie}, body: JSON.stringify({type: 'setOffsetDays', offsetDays: 3000})});
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).code, 'UNKNOWN_ACTION');
+});
+
+test('login failures are rate limited', async t => {
+  const url = await withServer(t);
+  await signIn(url, 'tester1');
+  const attempt = () => fetch(url + '/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: 'tester1', password: 'wrong-password'})});
+  for (let i = 0; i < 10; i++) assert.equal((await attempt()).status, 401);
+  assert.equal((await attempt()).status, 429, 'the eleventh try must be locked out');
+});
