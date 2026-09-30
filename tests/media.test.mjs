@@ -34,5 +34,6 @@ test('media belongs to the account and can be replaced or removed',async t=>{
  assert.equal((await post(a.cookie,{action:'delete',kind:'avatar'})).status,200);
  assert.equal((await fetch(base+'/api/media/avatar/'+a.id,{headers:{cookie:a.cookie}})).status,404);
  const me=await(await fetch(base+'/api/me',{headers:{cookie:a.cookie}})).json();
- assert.deepEqual(me.media,{avatar:false,background:true});
+ assert.equal(me.media.avatar,false);assert.equal(me.media.background,true);
+ assert(me.media.backgroundVersion>0);
 });

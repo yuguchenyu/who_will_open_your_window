@@ -143,8 +143,9 @@ try{
  const other=await browser.newContext({viewport:{width:390,height:844}});
  const second=await other.newPage();
  await signIn(second,url,account);
- await page.locator('.bottom-nav').getByRole('button',{name:'遇见',exact:true}).click();
- await page.waitForURL(u=>u.pathname.startsWith('/login'),{timeout:10000});
+ // 实时同步也可能先发现会话被顶掉，因而不假定一定要通过点击触发跳转。
+ try{await page.waitForURL(u=>u.pathname.startsWith('/login'),{timeout:7000})}
+ catch{await page.locator('.bottom-nav').getByRole('button',{name:'遇见',exact:true}).click();await page.waitForURL(u=>u.pathname.startsWith('/login'),{timeout:10000})}
  assert((await page.locator('.notice').innerText()).includes('另一台设备'),'the displaced device must be told why');
  // 被顶掉前写在输入框里的话，重新登录后要回来 —— 整页跳转会让它消失，所以先存了 sessionStorage。
  await signIn(page,url,account);
