@@ -4,14 +4,15 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {PEOPLE} from './public/core.mjs';
+import {PEOPLE,DRAW_PEOPLE} from './public/core.mjs';
 import {ApiError} from './lib/errors.mjs';
 import {openDatabase} from './lib/db.mjs';
 import {readJson, cookieOf, sessionCookie, clearCookie} from './lib/http.mjs';
 import {COOKIE_NAME, SESSION_MS, register, login, logout, resolveSession, failureKey, ipFailureKey, isLockedOut, recordFailure, clearFailures, pruneFailures, MAX_IP_FAILURES} from './lib/auth.mjs';
 import {runAction} from './lib/actions.mjs';
 import {readState} from './lib/state.mjs';
-import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags, recommendations} from './lib/matching.mjs';
+import {drawState,draw,decide,remove,collection,isCollected} from './lib/draw.mjs';
+import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags} from './lib/matching.mjs';
 import {saveMedia,deleteMedia,mediaStatus,getMedia} from './lib/media.mjs';
 import {realSnapshot,sendRealNote,respondRealNote,sendRealMessage,conversation,canViewAvatar} from './lib/real-chat.mjs';
 
@@ -94,18 +95,23 @@ export function parseGuidance(raw){
 }
 export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
  const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));
- let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css'};
+ let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css','/draw.css':'draw.css'};
  async function analyzeProfile(userId){
-  if(!config.configured||active>=4)return false;
+  if(!config.configured)return {code:'NOT_CONFIGURED',message:'AI 尚未配置，请检查本地 .env 并重启服务。'};
+  if(active>=4)return {code:'BUSY',message:'AI 正在处理其他请求，请稍后重试提取标签。'};
   const profile=matchingProfile(database,userId);
   if(!profile)return false;
   active++;
   try{
+   validateIntroduction(profile.selfIntro,profile.desiredIntro);
    const tags=parseTags(await completion(config,matchingMessages(profile),fetchImpl,timeout));
    // A profile may have been edited while the model was responding.
    const latest=matchingProfile(database,userId);
    if(latest?.selfIntro===profile.selfIntro&&latest.desiredIntro===profile.desiredIntro){storeTags(database,userId,tags);return true}
-  }catch{ /* Keep registration and profile edits usable while AI is unavailable. */ }
+  }catch(error){
+   // Keep saved introductions usable and return only sanitized errors, never upstream content.
+   return error instanceof ApiError?{code:error.code,message:error.message}:{code:'INTERNAL',message:'标签提取失败，请稍后重试。'};
+  }
   finally{active--}
   return false;
  }
@@ -168,7 +174,11 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
     const who=authenticate(req);
     if(who.denied)return json(401,who.denied);
-    return json(200,{matches:recommendations(database,who.user.id).map(item=>({...item,avatarVersion:mediaStatus(database,item.id).avatarVersion}))});
+    return json(200,{matches:collection(database,who.user.id).filter(p=>p.kind==='real')});
+   }
+   if(url.pathname==='/api/draw'&&req.method==='GET'){
+    const who=authenticate(req);if(who.denied)return json(401,who.denied);
+    return json(200,drawState(database,who.user.id));
    }
    if(url.pathname==='/api/real'){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
@@ -253,16 +263,20 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     return json(200,realSnapshot(database,user.id));
    }
 
+   if(url.pathname==='/api/draw')return json(200,draw(database,user.id));
+   if(url.pathname==='/api/draw/decision')return json(200,decide(database,user.id,body.drawId,body.decision));
+   if(url.pathname==='/api/draw/remove')return json(200,remove(database,user.id,body.kind,body.personId));
+
    if(url.pathname==='/api/match-profile'){
     if(body.shareForMatching!==true)throw new ApiError('请确认自我介绍可展示给匹配对象。');
     saveMatchingProfile(database,user.id,body);
-    await analyzeProfile(user.id);
-    return json(200,{matchingProfile:matchingProfile(database,user.id)});
+    const analysis=await analyzeProfile(user.id);
+    return json(200,{matchingProfile:matchingProfile(database,user.id),aiAvailable:config.configured,matchingError:analysis&&analysis!==true?analysis:null});
    }
    if(url.pathname==='/api/match-retry'){
     if(!matchingProfile(database,user.id))throw new ApiError('请先填写匹配资料。');
-    await analyzeProfile(user.id);
-    return json(200,{matchingProfile:matchingProfile(database,user.id)});
+    const analysis=await analyzeProfile(user.id);
+    return json(200,{matchingProfile:matchingProfile(database,user.id),aiAvailable:config.configured,matchingError:analysis&&analysis!==true?analysis:null});
    }
 
    if(url.pathname==='/api/action'){
@@ -278,6 +292,7 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    active++;try{
     // 资料一律取自服务端状态，不接受客户端传进来的 profile。
     const state=readState(database,user.id);
+    if(DRAW_PEOPLE.some(p=>p.id===body.personId)&&!(state.messages[body.personId]?.length||state.notes.some(n=>n.personId===body.personId&&n.status==='accepted'))&&!isCollected(database,user.id,'virtual',body.personId))throw new ApiError('请先抽中并收藏这位虚拟人物。',403,'NOT_COLLECTED');
     const profile={name:state.profile.name,habit:state.profile.habit,topic:state.profile.topic};
 
     if(url.pathname==='/api/suggestions'){

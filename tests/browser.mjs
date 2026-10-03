@@ -102,7 +102,7 @@ try{
   const layout=await page.evaluate(()=>{
    const portrait=document.querySelector('.vn-character-photo'),choices=document.querySelector('.vn-choices');
    const p=portrait.getBoundingClientRect(),c=choices.getBoundingClientRect(),stage=document.querySelector('.vn-stage').getBoundingClientRect(),d=document.querySelector('.vn-dialogue').getBoundingClientRect();
-   return {center:p.x+p.width/2,viewport:innerWidth,above:c.bottom<=d.top,overlay:c.top<p.bottom,compact:d.height<240,crop:getComputedStyle(portrait).objectFit,overflow:document.documentElement.scrollWidth>innerWidth};
+   return {center:p.x+p.width/2,viewport:innerWidth,above:c.bottom<=d.top,overlay:c.top<p.bottom,compact:d.height<=Math.ceil(innerHeight*(innerWidth<=720?.34:.32)),crop:getComputedStyle(portrait).objectFit,overflow:document.documentElement.scrollWidth>innerWidth};
   });
   assert(Math.abs(layout.center-layout.viewport/2)<2,'portrait centered at '+width);
   assert(layout.above,'choices above dialogue at '+width);assert(layout.overlay,'choices overlap scenery');assert(layout.compact,'dialogue remains compact');assert.equal(layout.crop,'cover');assert(!layout.overflow);

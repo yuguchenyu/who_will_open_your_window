@@ -6,6 +6,25 @@
 
 ## 提示词
 
+### lin-watercolor
+
+制作方式：imagegen 内置工具。最终文件：`public/character/lin-watercolor.png`。
+
+Use case: stylized-concept. Asset: transparent-background standing character sprite for a gentle social app, portrait 2:3 composition. Subject: Lin Che, a 17-year-old East Asian high school girl who enjoys outdoor club activities. Cheerful innocent relaxed expression, dark brown ponytail with a small sage hair tie, cream cotton T-shirt under an open pale sage windbreaker, straight khaki outdoor trousers and simple sneakers, small hiking daypack on both shoulders. Age appropriate ordinary casual clothes, modest and non-sexual, no school logos. Match the reference's delicate hand-painted watercolor medium, soft pencil contours, ivory paper texture within painted areas, airy pale sage/cream/dusty blue/apricot palette, natural picture-book illustration and softly drawn face. Full body from head to shoes visible, centered front three-quarter view, head near top, minimal transparent padding, relaxed natural proportions. Character ONLY with genuinely transparent background, no surrounding watercolor haze or ground shadow, no background scenery or white rectangle, no lettering, logos or watermark.
+
+### chen-watercolor
+
+制作方式：imagegen 内置工具。最终文件：`public/character/chen-watercolor.png`。
+
+Use case: stylized-concept. Asset: transparent-background standing character sprite for a gentle social app, portrait 2:3 composition. Subject: Chen Xu, a 20-year-old East Asian female music student. Quiet attentive expression, long straight dark brown hair with a small side braid, soft dusty lavender cotton blouse, cream cardigan, long muted blue skirt and casual shoes, holding a slim music notebook against her chest. Distinct appearance from the reference character, graceful relaxed pose. Match the reference's delicate hand-painted watercolor medium, soft pencil contours, ivory paper texture within painted areas, airy pale sage/cream/dusty blue/apricot palette, natural picture-book illustration and softly drawn face. Full body from head to shoes visible, centered front three-quarter view, head near top, minimal transparent padding, relaxed natural proportions. Character ONLY with genuinely transparent background, no surrounding watercolor haze or ground shadow, no background scenery or white rectangle, no lettering, logos or watermark.
+
+### tang-watercolor
+
+制作方式：imagegen 内置工具。最终文件：`public/character/tang-watercolor.png`。
+
+Use case: stylized-concept. Asset: transparent-background standing character sprite for a gentle social app, portrait 2:3 composition. Subject: Tang Li, a 24-year-old East Asian female pastry chef. Warm humorous smile, chestnut hair in a loose bun, apricot long-sleeved blouse, sage waist apron over a long cream skirt, practical canvas shoes, holding a small plain pastry box at her side. Distinct appearance from the reference character, everyday friendly style. Match the reference's delicate hand-painted watercolor medium, soft pencil contours, ivory paper texture within painted areas, airy pale sage/cream/dusty blue/apricot palette, natural picture-book illustration and softly drawn face. Full body from head to shoes visible, centered front three-quarter view, head near top, minimal transparent padding, relaxed natural proportions. Character ONLY with genuinely transparent background, no surrounding watercolor haze or ground shadow, no background scenery or white rectangle, no lettering, logos or watermark.
+
+
 ### restaurant-watercolor（暖灯饭店）
 
 Use case: illustration-story. Create a new landscape 16:9 date-venue background for a gentle Chinese social app, matching the supplied watercolor room reference's painting medium and palette, but with the following completely different location: A welcoming small restaurant for a quiet dinner date, cream linen tables at the left and right edges, wooden chairs, little flower vases, ceramic plates, glowing apricot pendant lamps, a large window overlooking a tree-lined street at early evening, sage plants and softly detailed shelves. Central aisle clear for a standing character. Hand-painted delicate watercolor on ivory paper, subtle pencil contours, natural adult picture-book illustration, pale sage, cream, muted dusty blue and apricot, rich layered scenic detail, airy welcoming atmosphere, soft lifted shadows. Scene fills the whole canvas with no white frame. No people, text, logos or watermarks, no neon, no anime. Broad clear center for a separately composited standing character; quiet lower area for translucent dialogue UI.

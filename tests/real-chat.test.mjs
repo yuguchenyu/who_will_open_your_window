@@ -21,6 +21,10 @@ test('matched users can exchange a note and chat while strangers cannot',async t
  const post=(x,path,body)=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',cookie:cookie(x)},body:JSON.stringify(body)});
  const get=(x,path)=>fetch(base+path,{headers:{cookie:cookie(x)}});
  assert.equal((await post(a,'/api/real/note',{recipientId:c.user.id,text:'你好。'})).status,400);
+ assert.equal((await post(a,'/api/real/note',{recipientId:b.user.id,text:'先收藏才能递纸条。'})).status,400);
+ const drawn=await (await post(a,'/api/draw',{})).json();
+ assert.equal(drawn.pending.person.id,b.user.id);
+ assert.equal((await post(a,'/api/draw/decision',{drawId:drawn.pending.drawId,decision:'like'})).status,200);
  assert.equal((await post(a,'/api/real/note',{recipientId:b.user.id,text:'你好，我们都喜欢散步吗？'})).status,200);
  assert.equal((await post(a,'/api/real/note',{recipientId:b.user.id,text:'重复。'})).status,400);
  const incoming=await(await get(b,'/api/real')).json(),note=incoming.notes[0];

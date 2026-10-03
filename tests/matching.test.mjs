@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {openDatabase} from '../lib/db.mjs';
 import {register} from '../lib/auth.mjs';
-import {matchScore, parseTags, recommendations, saveMatchingProfile, storeTags} from '../lib/matching.mjs';
+import {matchScore, parseTags, recommendations, saveMatchingProfile, storeTags, validateIntroduction} from '../lib/matching.mjs';
 import {createServer} from '../server.mjs';
 
 const intros = {selfIntro: '我喜欢阅读，也重视真诚地交流。', desiredIntro: '希望遇见喜欢运动而且温柔的人。'};
@@ -29,6 +29,8 @@ test('model output must use the fixed matching vocabulary', () => {
   assert.deepEqual(parseTags(JSON.stringify(tags)), tags);
   assert.throws(() => parseTags('{"selfTags":["年龄25"],"desiredTags":["温柔"]}'));
   assert.throws(() => parseTags('{"selfTags":[],"desiredTags":["温柔"]}'));
+  assert.throws(() => parseTags('{"selfTags":[],"desiredTags":["温柔"]}'),error=>error.code==='INTRO_TOO_VAGUE');
+  assert.throws(() => validateIntroduction('哈'.repeat(31),'哈'.repeat(32)),/重复同一个字符/);
 });
 
 test('registration saves introductions, generates tags, and serves eligible recommendations', async t => {
@@ -54,6 +56,10 @@ test('registration saves introductions, generates tags, and serves eligible reco
   await registerUser('match_b', '我喜欢运动，也希望温柔地和对方交流。');
   const me = await (await fetch(base + '/api/me', {headers: {cookie: a}})).json();
   assert.equal(me.matchingProfile.status, 'ready');
+  assert.equal((await (await fetch(base + '/api/matches', {headers:{cookie:a}})).json()).matches.length,0);
+  const resultDraw = await (await fetch(base + '/api/draw', {method:'POST',headers:{cookie:a,'Content-Type':'application/json'},body:'{}'})).json();
+  assert.equal(resultDraw.pending.person.score,100);
+  await fetch(base + '/api/draw/decision', {method:'POST',headers:{cookie:a,'Content-Type':'application/json'},body:JSON.stringify({drawId:resultDraw.pending.drawId,decision:'like'})});
   const result = await (await fetch(base + '/api/matches', {headers: {cookie: a}})).json();
   assert.equal(result.matches.length, 1);
   assert.equal(result.matches[0].score, 100);
@@ -72,4 +78,31 @@ test('registration stays usable when the model is unavailable', async t => {
     body: JSON.stringify({username: 'offline_user', password: 'password12', ...intros, shareForMatching: true})});
   assert.equal(response.status, 200);
   assert.equal((await response.json()).matchingProfile.status, 'pending');
+});
+
+test('matching retry reports sanitized model errors and recovers on success', async t => {
+  const db = openDatabase(':memory:');
+  const {token,user} = register(db, {username:'retry_user',password:'password12'});
+  saveMatchingProfile(db,user.id,intros);
+  let unavailable = true;
+  const server = createServer({configured:true,base:'https://example.invalid/v1',key:'TEST',model:'test'}, {
+    db,fetchImpl:async()=>unavailable
+      ? new Response('private upstream diagnostics',{status:401})
+      : new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(tags)}}]}),{status:200}),
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>{server.closeAllConnections();server.close(()=>{db.close();resolve()})}));
+  const retry=async()=> (await fetch(`http://127.0.0.1:${server.address().port}/api/match-retry`,{
+    method:'POST',headers:{'Content-Type':'application/json',cookie:'hw_session='+token},body:'{}',
+  })).json();
+  const failed=await retry();
+  assert.equal(failed.matchingProfile.status,'pending');
+  assert.equal(failed.matchingError.code,'AUTH');
+  assert.equal(failed.aiAvailable,true);
+  assert(!JSON.stringify(failed).includes('private upstream diagnostics'));
+  unavailable=false;
+  const recovered=await retry();
+  assert.equal(recovered.matchingProfile.status,'ready');
+  assert.equal(recovered.matchingError,null);
+  assert.equal(recovered.aiAvailable,true);
 });
