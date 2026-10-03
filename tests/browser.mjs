@@ -23,6 +23,7 @@ try{
  // 首页现在会跳到登录页，所以每个测试服务器都要先有个账号。
  async function register(page,base,username){
   await page.goto(base+'/login.html');
+  if(await page.locator('.entry-open').count()){await page.locator('.entry-skip').click();}
   // 登录页默认是登录模式，注册得先切一下，否则根本没有"注册并进入"这个按钮。
   await page.getByRole('button',{name:'还没有账号？注册一个'}).click();
   await page.locator('#username').fill(username);
@@ -35,6 +36,7 @@ try{
  }
  async function signIn(page,base,username){
   await page.goto(base+'/login.html');
+  if(await page.locator('.entry-open').count()){await page.locator('.entry-skip').click();}
   await page.locator('#username').fill(username);
   await page.locator('#password').fill('password12');
   await page.getByRole('button',{name:'登录',exact:true}).click();
@@ -43,8 +45,8 @@ try{
  // 用户名规则是 3–20 位字母、数字或下划线，所以时间戳要转成 36 进制再截。
  const account='ua_'+Date.now().toString(36).slice(-8);
  context=await browser.newContext({viewport:{width:390,height:844}});const page=await context.newPage();page.on('pageerror',err=>errors.push(err.message));page.on('console',msg=>{if(msg.type()==='error'&&/Content Security Policy|Refused to execute|Refused to apply/.test(msg.text()))errors.push(msg.text())});
- await register(page,url,account);await page.getByText('AI 服务可用',{exact:true}).waitFor();
- await page.locator('.bottom-nav').getByRole('button',{name:'我的',exact:true}).click();
+ await register(page,url,account);await page.waitForFunction(()=>document.querySelector('#ai-status')?.textContent.includes('AI 服务可用'));
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'我的',exact:true}).click();
  await page.getByRole('button',{name:'设置场景与形象'}).click();
  const image=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRuoAAAAASUVORK5CYII=','base64');
  await page.locator('[data-media="avatar"]').setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:image});
@@ -54,7 +56,7 @@ try{
  await page.getByRole('button',{name:'恢复默认背景'}).click();
  await page.getByRole('button',{name:'移除形象'}).click();
  await page.getByRole('button',{name:'关闭面板'}).click();
- await page.locator('.bottom-nav').getByRole('button',{name:'遇见',exact:true}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'遇见',exact:true}).click();
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');
  await page.screenshot({path:path.join(out,'mobile-meet.png'),fullPage:true});
  await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();
@@ -66,64 +68,101 @@ try{
  await page.getByRole('button',{name:/^递出纸条/}).click();
  await page.getByRole('button',{name:'让 AI 回应这张纸条',exact:true}).click();
  await page.locator('.vn-dialogue-text').filter({hasText:'很高兴收到你的消息'}).waitFor();
- assert.equal(await page.locator('.vn-face').innerText(),'?');
+ assert.equal(await page.locator('.vn-character-photo').count(),1,'the demo person must show her sprite');
  await page.locator('.vn-intents span').first().waitFor();
  assert.equal(await page.locator('.vn-intents span').count(),3);
  assert.equal(await page.locator('.vn-choice').count(),4);
  await page.locator('.vn-choice').first().click();
- assert.equal(await page.getByLabel('聊天消息').inputValue(),'我也喜欢傍晚散步。');
- await page.getByLabel('聊天消息').fill('今天心情不错。');failNextReply=true;
- await page.getByRole('button',{name:/^发送/}).click();
+ await page.locator('.vn-dialogue-text').filter({hasText:'很高兴收到你的消息'}).waitFor();
+ failNextReply=true;
+ await page.locator('.vn-choice.custom').click();
+ await page.getByLabel('聊天消息').fill('今天心情不错。');
+ await page.getByLabel('聊天消息').press('Enter');
  await page.getByRole('button',{name:'重试回复',exact:true}).waitFor();
  await page.getByRole('button',{name:'回看记录'}).click();
  assert.equal(await page.locator('.bubble').filter({hasText:'今天心情不错。'}).count(),1);
  await page.getByRole('button',{name:'收起记录'}).click();
  await page.getByRole('button',{name:'重试回复',exact:true}).click();
+ await page.locator('.vn-choices .vn-choice').first().waitFor();
+ await page.locator('.vn-choice.custom').click();
  await page.getByLabel('聊天消息').waitFor();
  await page.getByRole('button',{name:'回看记录'}).click();
  assert.equal(await page.locator('.bubble').filter({hasText:'今天心情不错。'}).count(),1);
  await page.getByRole('button',{name:'收起记录'}).click();
  // 发出去的那句不能留在输入框里：重绘会把它填回来，再点一次发送就重复发一遍。
  assert.equal(await page.getByLabel('聊天消息').inputValue(),'','发送成功后输入框必须清空');
+ await page.locator('#toast.show').waitFor({state:'hidden'});await page.evaluate(()=>scrollTo(0,0));
  await page.screenshot({path:path.join(out,'mobile-chat.png'),fullPage:true});
  await page.setViewportSize({width:1440,height:900});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'desktop chat overflow');
  await page.screenshot({path:path.join(out,'desktop-chat.png'),fullPage:true});
+ // Full-screen scene: centered portrait, choices over scenery above the dialogue.
+ for(const width of [320,390,768,1024,1440]){
+  await page.setViewportSize({width,height:width<720?844:900});
+  const layout=await page.evaluate(()=>{
+   const portrait=document.querySelector('.vn-character-photo'),choices=document.querySelector('.vn-choices');
+   const p=portrait.getBoundingClientRect(),c=choices.getBoundingClientRect(),stage=document.querySelector('.vn-stage').getBoundingClientRect(),d=document.querySelector('.vn-dialogue').getBoundingClientRect();
+   return {center:p.x+p.width/2,viewport:innerWidth,above:c.bottom<=d.top,overlay:c.top<p.bottom,compact:d.height<240,crop:getComputedStyle(portrait).objectFit,overflow:document.documentElement.scrollWidth>innerWidth};
+  });
+  assert(Math.abs(layout.center-layout.viewport/2)<2,'portrait centered at '+width);
+  assert(layout.above,'choices above dialogue at '+width);assert(layout.overlay,'choices overlap scenery');assert(layout.compact,'dialogue remains compact');assert.equal(layout.crop,'cover');assert(!layout.overflow);
+ }
+ await page.setViewportSize({width:1440,height:900});
+
+ // Watercolor scenes and failures: switching preserves IDs, failed assets cannot block input.
+ for(const scene of ['雨夜商店街','窗边小屋','秋日林荫道','黄昏湖畔','默认场景']){
+  await page.getByRole('button',{name:'场景',exact:true}).click();
+  await page.getByRole('button',{name:scene,exact:true}).click();
+  await page.locator('.vn-background-image').evaluate(image=>image.decode());
+ }
+ await page.route('**/character/xia-watercolor.png',route=>route.abort());
+ await page.route('**/bg/window-day-watercolor.png',route=>route.abort());
+ await page.getByRole('button',{name:'场景',exact:true}).click();
+ await page.locator('.character-fallback').waitFor();
+ await page.locator('.vn-background-image.asset-failed').waitFor({state:'attached'});
+ await page.unroute('**/character/xia-watercolor.png');await page.unroute('**/bg/window-day-watercolor.png');
+ await page.getByRole('button',{name:'默认场景',exact:true}).click();
+ await page.locator('.vn-character-photo').evaluate(image=>image.decode());
+ await page.setViewportSize({width:320,height:720});
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'narrow mobile chat overflow');
+ await page.screenshot({path:path.join(out,'narrow-chat.png'),fullPage:true});
+
  await page.setViewportSize({width:390,height:844});
- await page.getByRole('button',{name:'心笺',exact:true}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'我的',exact:true}).click();
+ await page.locator('.feeling-card').first().getByRole('button',{name:'写心笺',exact:true}).click();
  await page.locator('#score-input').fill('73');await page.locator('#score-input').dispatchEvent('input');
  await page.locator('#memo').fill('PRIVATE_FEELING_73');await page.getByRole('button',{name:'保存这次感受'}).click();
- await page.getByRole('button',{name:'回望 · 确认意愿'}).click();
+ await page.locator('.feeling-card').first().getByRole('button',{name:'回望',exact:true}).click();
  await page.locator('#review-intent').selectOption('closer');await page.locator('#review-auth').check();
  await page.getByRole('button',{name:'确认本周期意愿'}).click();
- await page.getByRole('button',{name:'打开 Demo 控制面板'}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'我的',exact:true}).click();
+ await page.getByRole('button',{name:'演示控制面板'}).click();
  await page.locator('#demo-intent').selectOption('closer');await page.locator('#demo-auth').check();await page.getByRole('button',{name:'保存为本周期状态'}).click();await page.getByRole('button',{name:'关闭面板'}).click();
- await page.locator('.bottom-nav').getByRole('button',{name:'我的',exact:true}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'我的',exact:true}).click();
  assert((await page.locator('.score').first().innerText()).includes('73'));
  await page.locator('.feeling-card').first().getByRole('button',{name:'轻叩窗扉',exact:true}).click();
  await page.locator('#knock-consent').check();await page.getByRole('button',{name:'确认轻叩'}).click();
  await page.locator('#dialog').getByRole('heading',{name:'你的心意，有了回响。',exact:true}).waitFor();
  await page.screenshot({path:path.join(out,'mobile-mutual.png')});
  await page.getByRole('button',{name:'回到我的心笺'}).click();
- await page.reload();await page.getByText('AI 服务可用',{exact:true}).waitFor();await page.locator('.bottom-nav').getByRole('button',{name:'我的',exact:true}).click();
+ await page.reload();await page.waitForFunction(()=>document.querySelector('#ai-status')?.textContent.includes('AI 服务可用'));await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'我的',exact:true}).click();
  assert((await page.locator('.score').first().innerText()).includes('73'));assert.equal(await page.locator('.result-card').count(),1);
- await page.getByRole('button',{name:'打开 Demo 控制面板'}).click();await page.getByRole('button',{name:'推进 7 天',exact:true}).click();
- await page.waitForFunction(async()=>{const data=await(await fetch('/api/me')).json();return data.state.offsetDays===7});
+ await page.getByRole('button',{name:'演示控制面板'}).click();await page.getByRole('button',{name:'推进 7 天',exact:true}).click(); await page.waitForFunction(async()=>{const data=await(await fetch('/api/me')).json();return data.state.offsetDays===7});
  await page.locator('#demo-intent').selectOption('exploring');await page.getByRole('button',{name:'保存为本周期状态'}).click();
  await page.waitForFunction(async()=>{const data=await(await fetch('/api/me')).json();return data.state.scenarios.xia.intent==='exploring'&&data.state.scenarios.xia.cycle===1});
  await page.getByRole('button',{name:'关闭面板'}).click();
  await page.locator('.feeling-card').first().getByRole('button',{name:'回望',exact:true}).click();await page.locator('#review-auth').check();await page.getByRole('button',{name:'确认本周期意愿'}).click();
  await page.waitForFunction(async()=>{const data=await(await fetch('/api/me')).json();return data.state.reviews.xia?.cycle===1&&data.state.reviews.xia.authorized});
  await page.locator('.feeling-card').first().getByRole('button',{name:'轻叩窗扉',exact:true}).click();await page.locator('#knock-consent').check();await page.getByRole('button',{name:'确认轻叩'}).click();await page.locator('#dialog').getByRole('heading',{name:'本次暂未确认双向心意。',exact:true}).waitFor();await page.getByRole('button',{name:'回到我的心笺'}).click();
- await page.getByRole('button',{name:'打开 Demo 控制面板'}).click();await page.locator('#demo-person').selectOption('yu');await page.getByRole('button',{name:'模拟收到纸条',exact:true}).click();
+ await page.getByRole('button',{name:'演示控制面板'}).click();await page.locator('#demo-person').selectOption('yu');await page.getByRole('button',{name:'模拟收到纸条',exact:true}).click();
  await page.getByRole('button',{name:'稍后再看',exact:true}).last().click();await page.locator('.tabs').getByRole('button',{name:'稍后再看',exact:true}).click();await page.getByRole('button',{name:'暂不接话',exact:true}).click();await page.getByRole('button',{name:'已归档',exact:true}).click();await page.locator('.note-card').filter({hasText:'已归档 · 不通知对方'}).waitFor();
  assert(!JSON.stringify(requests).includes('PRIVATE_FEELING_73'));
- await page.getByRole('button',{name:'打开 Demo 控制面板'}).click();await page.getByRole('button',{name:'重置全部演示数据'}).click();await page.getByRole('button',{name:'确认清除并重新开始'}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'我的',exact:true}).click();await page.getByRole('button',{name:'演示控制面板'}).click();await page.getByRole('button',{name:'重置全部演示数据'}).click();await page.getByRole('button',{name:'确认清除并重新开始'}).click();
  await page.locator('.person-card').first().waitFor();assert.equal(await page.locator('.person-card').count(),3);
- await page.locator('.bottom-nav').getByRole('button',{name:'我的',exact:true}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'我的',exact:true}).click();
  assert((await page.locator('.smallprint').filter({hasText:'数据保存在服务端'}).count())>0,'the account must survive a demo reset');
  // 截图要拍的是"遇见"页，切回去。
- await page.locator('.bottom-nav').getByRole('button',{name:'遇见',exact:true}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'遇见',exact:true}).click();
  await page.setViewportSize({width:320,height:720});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'narrow mobile overflow');
  await page.setViewportSize({width:1440,height:1000});await page.mouse.move(0,0);await page.locator('#toast.show').waitFor({state:'hidden'});await page.screenshot({path:path.join(out,'desktop-meet.png'),fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'desktop overflow');
  // —— 被另一台设备顶掉 + 草稿抢救 ---------------------------------------------
@@ -131,12 +170,13 @@ try{
  // 两个测试服务器都在 127.0.0.1 上，谁后登录谁的 hw_session 就会盖掉另一个。
  await page.setViewportSize({width:390,height:844});
  // 整页刷新后，服务端会自动告知 AI 是否可用。
- await page.getByText('AI 服务可用',{exact:true}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('#ai-status')?.textContent.includes('AI 服务可用'));
  // 重置把联系人清空了，先跟 xia 重新建立一段对话，才有聊天输入框可用。
  await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();
  await page.getByLabel('纸条内容').fill('先把对话建立起来。');
  await page.getByRole('button',{name:/^递出纸条/}).click();
  await page.getByRole('button',{name:'让 AI 回应这张纸条',exact:true}).click();
+ await page.locator('.vn-choice.custom').click();
  await page.locator('[data-draft="chat:xia"]').waitFor();
  await page.locator('[data-draft="chat:xia"]').fill('这句话不能被弄丢');
  // 注意要用独立的 context：同一个 context 共用 cookie，那样顶不掉自己。
@@ -145,17 +185,18 @@ try{
  await signIn(second,url,account);
  // 实时同步也可能先发现会话被顶掉，因而不假定一定要通过点击触发跳转。
  try{await page.waitForURL(u=>u.pathname.startsWith('/login'),{timeout:7000})}
- catch{await page.locator('.bottom-nav').getByRole('button',{name:'遇见',exact:true}).click();await page.waitForURL(u=>u.pathname.startsWith('/login'),{timeout:10000})}
+ catch{await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'遇见',exact:true}).click();await page.waitForURL(u=>u.pathname.startsWith('/login'),{timeout:10000})}
  assert((await page.locator('.notice').innerText()).includes('另一台设备'),'the displaced device must be told why');
  // 被顶掉前写在输入框里的话，重新登录后要回来 —— 整页跳转会让它消失，所以先存了 sessionStorage。
  await signIn(page,url,account);
- await page.locator('.bottom-nav').getByRole('button',{name:'对话',exact:true}).click();
+ await page.locator('.menu-btn').click();await page.locator('.menu-panel').getByRole('button',{name:'对话',exact:true}).click();
+ await page.locator('.vn-choice.custom').click();
  assert.equal(await page.locator('[data-draft="chat:xia"]').inputValue(),'这句话不能被弄丢','an unsent draft must survive being signed out');
  await other.close();
  // Separate unconfigured test server; never use real keys or change the running demo.
  // 这是另一个服务器、另一个库，要在它上面单独注册一个账号。
  const coldBase=`http://127.0.0.1:${unconfigured.address().port}`;
- await register(page,coldBase,'cfg_1');await page.getByText('AI 服务暂不可用',{exact:true}).waitFor();await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();await page.locator('#toast.show').getByText('AI 服务暂不可用，请稍后再试。').waitFor();
+ await register(page,coldBase,'cfg_1');await page.waitForFunction(()=>document.querySelector('#ai-status')?.textContent.includes('AI 服务暂不可用'));await page.getByRole('button',{name:'递张纸条',exact:false}).first().click();await page.locator('#toast.show').getByText('AI 服务暂不可用，请稍后再试。').waitFor();
  await page.screenshot({path:path.join(out,'ai-unavailable.png')});
  assert.deepEqual(errors,[]);console.log('PASS: mobile + desktop overflow, login gate, server-managed AI availability, suggestions, editable note, AI reply, failure retry without duplicate, private feelings, authorization, both outcomes, persistence, cycle advance, inbox save/archive, reset, single-device takeover, draft survival.');
  console.log('Screenshots saved in runtime/screenshots. All model responses in this test were explicitly mocked.');

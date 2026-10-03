@@ -93,6 +93,15 @@ test('an IP whitelist admits listed devices, refuses others, and never locks out
  assert(refused.body.includes(ip),'the refusal must name the client address so a blocked device can be diagnosed');
  assert.equal((await rawRequest(unlisted,'/api/status')).status,200,'the local browser must never be locked out');
 });
+// --- AI base URL scheme policy (ALLOW_HTTP_AI) -------------------------------
+const LAN_ENV={AI_BASE_URL:'http://192.0.2.10:8081/v1',AI_API_KEY:'sk-test',AI_MODEL:'glm-test'};
+test('a plain-HTTP non-loopback AI base URL is rejected unless ALLOW_HTTP_AI is set',()=>{
+ assert.equal(readConfig('/nonexistent-root',LAN_ENV).configured,false,'the key must not silently travel plaintext');
+ assert.equal(readConfig('/nonexistent-root',{...LAN_ENV,ALLOW_HTTP_AI:'1'}).configured,true,'an explicit opt-in unlocks a trusted LAN proxy');
+ assert.equal(readConfig('/nonexistent-root',{...LAN_ENV,ALLOW_HTTP_AI:'0'}).configured,false);
+ assert.equal(readConfig('/nonexistent-root',{...LAN_ENV,AI_BASE_URL:'http://127.0.0.1:8081/v1'}).configured,true,'loopback http never needed the flag');
+ assert.equal(readConfig('/nonexistent-root',{...LAN_ENV,AI_BASE_URL:'https://api.example.com/v1'}).configured,true,'https never needed the flag');
+});
 test('an empty whitelist leaves LAN mode open to the subnet',async t=>{
  if(!lanIps.length)return t.skip('this machine has no non-internal IPv4 address');
  const ip=lanIps[0];

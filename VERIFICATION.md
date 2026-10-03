@@ -1,5 +1,18 @@
 # 验证记录
 
+## 2026-10-03 · 水彩视觉与开窗入场
+
+- `npm test`：80 项通过。Windows Chrome 下 `node tests/browser.mjs`、`node tests/real-browser.mjs`、`node tests/visual-browser.mjs` 均通过；业务测试使用模拟 AI、内存数据库，不调用真实模型或修改现有账号。
+- 已检查 320px、390px 手机与 1440px 电脑的截图，覆盖登录、遇见、纸条、我的和对话。浅色对话框、人物与回复选项布局无横向溢出；长内容可滚动，列表头像显示完整面部。
+- 首次点击开窗、键盘进入和焦点恢复、直接进入、刷新与登录后不重播、已有登录账号新标签页、减少动态效果、存储不可用及动画超时兜底均通过。无页面异常或 CSP 执行错误。
+- 5 张场景与 3 张立绘均正常加载，立绘含真实透明像素。场景切换、图片加载失败时的备用显示、自定义背景刷新保留、回复建议、手动发送、重试无重复及草稿恢复通过。
+- 截图：`runtime/screenshots/watercolor/`；对话截图：`runtime/screenshots/desktop-chat.png`、`mobile-chat.png`、`narrow-chat.png`。素材与完整生成提示词见 `docs/watercolor-assets.md`，制作方式为 imagegen 内置工具。
+- 已识别并停止属于本项目的旧 WSL 实例，再使用现有 Windows 后台启动器启动新版；未改动 `.env` 或删除数据库。启动器退出后，监控与新版静态资源检查正常。
+
+复现新增界面测试：`node tests/visual-browser.mjs`，使用项目已安装的 playwright-core 与 Windows Chrome；其他环境可通过 `CHROME_PATH` 指定浏览器可执行文件。
+
+## 先前版本记录
+
 验证日期：2026-09-26。运行环境：Windows、Node.js 24.13.0、独立无头 Chrome。
 
 ## 已通过

@@ -20,7 +20,10 @@ export function readConfig(root=ROOT,env=process.env){
  const values={};const filename=path.join(root,'.env');
  if(fs.existsSync(filename))for(const line of fs.readFileSync(filename,'utf8').replace(/^\uFEFF/,'').split(/\r?\n/)){const match=line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);if(match){let v=match[2];if((v.startsWith('"')&&v.endsWith('"'))||(v.startsWith("'")&&v.endsWith("'")))v=v.slice(1,-1);values[match[1]]=v}}
  const take=k=>env[k]??values[k]??'';const base=take('AI_BASE_URL').replace(/\/+$/,'');const key=take('AI_API_KEY');const model=take('AI_MODEL');let valid=false;
- try{const u=new URL(base);valid=(u.protocol==='https:'||(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)))&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.hostname.endsWith('.example')}catch{}
+ // 默认只信任 HTTPS 和本机回环地址 —— API key 不能悄悄地明文发去别的地址。
+ // ALLOW_HTTP_AI=1 是给"局域网内自己的模型代理"准备的显式豁免开关，必须在 .env 里主动写。
+ const allowHttpAi=['1','true'].includes(take('ALLOW_HTTP_AI').toLowerCase());
+ try{const u=new URL(base);valid=(u.protocol==='https:'||(u.protocol==='http:'&&(allowHttpAi||['127.0.0.1','localhost','[::1]'].includes(u.hostname))))&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.hostname.endsWith('.example')}catch{}
  const port=Number(take('PORT')||3210);if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('PORT 必须为 1024–65535 的整数。');
  // ALLOW_IPS 非空时自动开启局域网监听，避免"设了白名单却没生效"的空操作。
  const allowIps=take('ALLOW_IPS').split(/[\s,]+/).filter(Boolean);
@@ -91,7 +94,7 @@ export function parseGuidance(raw){
 }
 export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
  const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));
- let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs'};
+ let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css'};
  async function analyzeProfile(userId){
   if(!config.configured||active>=4)return false;
   const profile=matchingProfile(database,userId);
@@ -144,6 +147,12 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    // —— 静态文件 ——
    if(req.method==='GET'&&Object.hasOwn(whitelist,url.pathname)){
     const file=whitelist[url.pathname];const content=await fs.promises.readFile(path.join(ROOT,'public',file));res.writeHead(200,{...headers,'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(content);
+   }
+   // 静态图片：/bg/（场景背景）与 /character/（立绘），只放行固定命名的图片（无路径分隔符、无点号，防目录穿越）。
+   if(req.method==='GET'&&/^\/(?:bg|character)\/[a-z0-9_-]+\.(jpg|png|webp)$/.test(url.pathname)){
+    const type={jpg:'image/jpeg',png:'image/png',webp:'image/webp'}[url.pathname.slice(-3)]||'image/jpeg';
+    try{const content=await fs.promises.readFile(path.join(ROOT,'public',url.pathname.slice(1)));res.writeHead(200,{...headers,'Content-Type':type,'Cache-Control':'public, max-age=86400'});return res.end(content)}
+    catch{return json(404,{error:'背景不存在。',code:'NOT_FOUND'})}
    }
 
    if(req.method==='GET'&&url.pathname==='/api/status')return json(200,{app:'heart-window-demo',version:'1.0.0'});
