@@ -18,7 +18,7 @@ const SCENES=[{id:'',name:'默认场景'},{id:'street-night',name:'雨夜商店�
 const SCENE_KEY='heart-window-scene';
 function loadScene(){try{const id=localStorage.getItem(SCENE_KEY)||'';return SCENES.some(scene=>scene.id===id)?id:''}catch{return ''}}
 function saveScene(id){ui.preset=id;try{localStorage.setItem(SCENE_KEY,id)}catch{}}
-const ui={tab:'meet',paperTab:'in',person:'xia',realChatId:null,modal:null,drafts:{},suggestions:{},guidance:{},guidanceError:{},guidanceBusy:{},intents:{},busy:'',error:'',backgroundError:'',selected:'xia',showHistory:false,replyChoice:{},composing:{},menu:false,preset:loadScene(),scenePicker:false};
+const ui={tab:'meet',paperTab:'in',person:'xia',realChatId:null,modal:null,drafts:{},suggestions:{},guidance:{},guidanceError:{},guidanceBusy:{},favorability:{},favorabilityBusy:{},intents:{},busy:'',error:'',backgroundError:'',selected:'xia',showHistory:false,replyChoice:{},composing:{},menu:false,preset:loadScene(),scenePicker:false};
 let media={avatar:false,background:false,avatarVersion:0,backgroundVersion:0};
 let backgroundUrl='';
 const ai={ready:false,error:''};
@@ -121,11 +121,15 @@ function realChat(){
  const id=conversation.id,p=conversation.person,messages=conversation.messages,latest=messages.at(-1),incoming=[...messages].reverse().find(m=>m.role==='assistant');
  const data=ui.guidance[id]?.messageId===incoming?.id?ui.guidance[id]:null,choices=data?.suggestions||[];
  const key='chat:'+id,sceneImage=sceneLayer();
+ const fav=ui.favorability[id];
+ const favBtnHtml=fav&&fav.canView
+  ?`<button type="button" class="vn-fav-badge" data-action="favorability" data-id="${id}" title="查看好感度分析"><span>${e(fav.badge||'💖')}</span> <b>好感度 ${fav.score}分</b> <small>· 连续${fav.factors?.continuity?.streakDays||0}天🔥</small></button>`
+  :`<button type="button" class="vn-fav-badge" data-action="favorability" data-id="${id}" title="查看好感度分析">${icon('heart')} <span>好感度分析</span></button>`;
  return `<section class="vn-stage real ${sceneImage?'custom-background':''}" aria-label="与${e(p.name)}的真人对话场景">${sceneImage}
   ${ui.scenePicker?sceneStrip():''}
   ${p.avatarVersion?`<img class="vn-character-photo" src="/api/media/avatar/${encodeURIComponent(p.id)}?v=${p.avatarVersion}" alt="${e(p.name)}设置的虚拟形象">`:'<div class="vn-character" aria-label="对方未设置形象，显示问号人"><div class="vn-hair"></div><div class="vn-face">?</div><div class="vn-body"></div></div>'}
   ${latest?.role==='assistant'?`<div class="vn-choices" aria-label="回复选项">${[0,1,2].map(i=>choices[i]?btn(`<b>0${i+1}</b><span>${e(choices[i].text)}</span>`,'choose-guidance',id+'|'+i,'vn-choice '+(ui.replyChoice[id]===i?'selected':'')):btn(`<b>0${i+1}</b><span>${ui.guidanceBusy[id]?'正在生成 AI 选项…':'点击生成 AI 选项'}</span>`,'guidance',id,'vn-choice',!ai.ready||!!ui.busy||!!ui.guidanceBusy[id])).join('')}${ui.composing[id]?`<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key]||'')}</textarea></div>`:btn('<b>04</b><span>自己输入想说的话</span>','custom-reply',id,'vn-choice custom '+(ui.replyChoice[id]==='custom'?'selected':''))}</div>`:''}
-  <div class="vn-dialogue"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div><p class="vn-dialogue-text">${e(latest?.content||'从一句问候开始。')}</p>${latest?.role==='assistant'?guidanceInline(id,data):''}<div class="vn-foot-row">${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
+  <div class="vn-dialogue"><div class="vn-dialogue-top"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div>${favBtnHtml}</div><p class="vn-dialogue-text">${e(latest?.content||'从一句问候开始。')}</p>${latest?.role==='assistant'?guidanceInline(id,data):''}<div class="vn-foot-row">${favBtnHtml}${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
  </section>${ui.showHistory?`<section class="vn-history" aria-label="聊天记录"><h3>回看记录</h3><div class="messages" id="messages">${messages.map(m=>`<div class="bubble-row ${m.role==='user'?'user':''}">${m.role==='assistant'?matchAvatar(p):''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join('')}</div></section>`:''}`;
 }
 function demoChat(){
@@ -151,7 +155,7 @@ function me(){
  const contacts=C.PEOPLE.filter(p=>C.hasContact(s,p.id)).length+real.conversations.length;
  const matchingStatus=matchingProfile?.status==='ready'?'资料已准备好':matchingProfile?'等待提取标签':'还未留下介绍';
  return `<div class="personal-page"><header class="personal-hero my-hero"><div><span class="eyebrow">A LITTLE ROOM FOR YOUR HEART</span><h1>留一点时间，给自己。</h1><p>记下相遇，也照顾每一次真实的感受。</p></div><div class="personal-stats"><span><b>${contacts}</b>段对话</span><span><b>${recorded}</b>次心笺</span><span><b>${C.cycleOf(s)+1}</b>当前周期</span></div></header>
- <div class="profile-columns"><section class="account-card profile-card"><div class="profile-heading"><div class="chat-heading">${media.avatar?selfAvatar():`<span class="avatar profile-initial">${e(Array.from(s.profile.name)[0]||'我')}</span>`}<div class="profile-name"><h2>${e(s.profile.name)}</h2><span class="subtle">账号 ${e(account?.username||'')}</span></div></div>${btn('编辑','profile','','btn secondary small')}</div><p class="habit">${e(s.profile.habit)}</p><div class="topic-box"><small>${icon('window')} 我留的一扇窗</small>${e(s.profile.topic)}</div><div class="profile-bottom"><span class="tag">陌生人纸条 · ${s.profile.allowNotes?'接收中':'已关闭'}</span>${btn('设置场景与形象','appearance','','link-btn')}</div><p class="smallprint">数据保存在服务端，同一账号同一时间只能登录一台设备。</p></section>
+ <div class="profile-columns"><section class="account-card profile-card"><div class="profile-heading"><div class="chat-heading">${media.avatar?selfAvatar():`<span class="avatar profile-initial">${e(Array.from(s.profile.name)[0]||'我')}</span>`}<div class="profile-name"><h2>${e(s.profile.name)}</h2><span class="subtle">账号 ${e(account?.username||'')}</span></div></div>${btn('编辑','profile','','btn secondary small')}</div><p class="habit">${e(s.profile.habit)}</p><div class="topic-box"><small>${icon('window')} 我留的一扇窗</small>${e(s.profile.topic)}</div><div class="profile-bottom"><span class="tag">陌生人纸条 · ${s.profile.allowNotes?'接收中':'已关闭'}</span><span class="tag">好感度系统 · ${s.profile.favorabilityEnabled!==false?'开启中':'已隐藏'}</span>${btn('设置场景与形象','appearance','','link-btn')}</div><p class="smallprint">数据保存在服务端，同一账号同一时间只能登录一台设备。</p></section>
  <section class="account-card matching-card"><div class="matching-heading"><span class="section-icon" aria-hidden="true">${icon('window')}</span><div><h2>我的匹配资料</h2><span class="tag">${matchingStatus}</span></div></div><p class="smallprint">${matchingProfile?.status==='ready'?'从相似的兴趣开始，找到愿意认真交流的人。':matchingProfile?'介绍已保存，标签生成后即可参与双方匹配。':'写一点关于自己与期待，让相遇多一点方向。'}</p>${matchingProfile?`<p class="matching-intro">${e(matchingProfile.selfIntro)}</p><div class="tags">${matchingProfile.selfTags.map(t=>`<span class="tag">${e(t)}</span>`).join('')}</div>`:''}<div class="row-actions">${btn(matchingProfile?'编辑介绍':'填写介绍','matching','','btn secondary small')}${matchingProfile?.status==='pending'?btn('重试提取标签','retry-matching','','link-btn'):''}</div></section></div>
  <div class="private-banner">${icon('lock')}窗内心笺 · 具体分数仅自己可见，不发送给 AI</div><div class="subhead"><h2>回望自己的心意</h2><small>第 ${C.cycleOf(s)+1} 个周期 · 慢慢确认，不必着急</small></div><div class="feelings-grid">${accessiblePeople().map(p=>{const list=s.feelings[p.id]||[],last=list.at(-1),r=s.reviews[p.id],current=r?.cycle===C.cycleOf(s);const reason=C.confirmationReason(s,p.id);return `<article class="feeling-card ${p.color}"><div class="feeling-top"><div class="chat-heading">${avatar(p)}<div class="feeling-name"><h3>${e(p.name)}</h3><small class="mini-label">${last?'最近记录 '+date(last.at):'还没有写下感受'}</small></div></div><div class="score">${last?last.score:'—'}<span>/ 100</span></div></div><p class="review-status">${r?`${current?'本周期':'上周期'}意愿：${e(C.INTENTS[r.intent])} · ${r.authorized&&current?'已授权双向揭晓':'未授权或已过期'}`:'还在了解中，可以先写一页心笺。'}</p><div class="row-actions">${btn('写心笺','feel',p.id,'btn secondary small')}${btn('回望','review',p.id,'btn secondary small')}${btn('轻叩窗扉','knock',p.id,'btn small',!!reason||!!ui.busy)}</div>${reason?`<p class="smallprint">${e(reason)}</p>`:''}</article>`}).join('')}</div>
  <section class="echo-section"><div class="subhead"><h2>留存的回响</h2><small>珍藏当时的心意</small></div>${s.confirmations.length?s.confirmations.slice().reverse().map(c=>`<article class="result-card ${c.mutual?'':'neutral'}"><span class="subtle">${e(C.person(c.personId).name)} · ${date(c.at)} · 第 ${c.cycle+1} 周期</span><h3>${c.mutual?'你的心意，有了回响。':'本次暂未确认双向心意。'}</h3><p>${c.mutual?'你们都愿意进一步了解彼此。只揭晓共同意愿，不公开双方分数。':'这条记录只对你可见。对方不会知道你曾发起确认。'}</p></article>`).join(''):`<div class="echo-empty">${icon('heart')}<div><h3>把回响，留在这里。</h3><p>有过确认后，结果会保存在这里。未形成双向心意，也不必急着再试。</p></div></div>`}</section><footer class="personal-footer"><span>按照自己的节奏，慢慢靠近。</span><div>${btn('演示控制面板','demo','','link-btn')}${btn('退出登录','logout','','link-btn')}</div></footer></div>`;
@@ -180,7 +184,24 @@ function renderKeepingDraftFocus(){
  const next=document.querySelector(`[data-draft="${CSS.escape(draft)}"]`);
  if(next){next.focus({preventScroll:true});if(start!==null&&end!==null)next.setSelectionRange(start,end)}
 }
-function openModal(type,id=''){ui.modal={type,id};ui.error='';if(type==='feel'){const last=s.feelings[id]?.at(-1);ui.drafts.score=last?.score??50;ui.drafts.memo=''}if(type==='profile'){ui.drafts.profile={...s.profile}}if(type==='matching'){ui.drafts.matching={selfIntro:matchingProfile?.selfIntro||'',desiredIntro:matchingProfile?.desiredIntro||''}}if(type==='review'){const r=s.reviews[id];ui.drafts.review={intent:r?.intent||'exploring',authorized:r?.cycle===C.cycleOf(s)?!!r.authorized:false}}render();if(!dialog.open)dialog.showModal()}
+async function loadFavorability(convId, analyze=false){
+ if(!convId)return;
+ ui.favorabilityBusy[convId]=true;
+ renderModal();
+ try{
+  const data=analyze
+    ? await post('/api/real/favorability/analyze',{conversationId:convId})
+    : await get('/api/real/favorability?conversationId='+encodeURIComponent(convId));
+  ui.favorability[convId]=data;
+ }catch(err){
+  ui.favorability[convId]={canView:false,error:err.message};
+ }finally{
+  delete ui.favorabilityBusy[convId];
+  renderModal();
+  render();
+ }
+}
+function openModal(type,id=''){ui.modal={type,id};ui.error='';if(type==='feel'){const last=s.feelings[id]?.at(-1);ui.drafts.score=last?.score??50;ui.drafts.memo=''}if(type==='profile'){ui.drafts.profile={...s.profile}}if(type==='matching'){ui.drafts.matching={selfIntro:matchingProfile?.selfIntro||'',desiredIntro:matchingProfile?.desiredIntro||''}}if(type==='review'){const r=s.reviews[id];ui.drafts.review={intent:r?.intent||'exploring',authorized:r?.cycle===C.cycleOf(s)?!!r.authorized:false}}if(type==='favorability'){loadFavorability(id)}render();if(!dialog.open)dialog.showModal()}
 function closeModal(){if(dialog.open)dialog.close();ui.modal=null}
 function modalWrap(title,body){return `<div class="modal-head"><h2>${title}</h2><button type="button" class="circle-btn" data-action="close" aria-label="关闭面板">${icon('close')}</button></div><div class="modal-body"><div class="notice" data-modal-feedback role="status" hidden></div>${body}</div>`}
 function renderModal(){if(!ui.modal)return;const {type,id}=ui.modal;let title='',body='';
@@ -193,7 +214,27 @@ function renderModal(){if(!ui.modal)return;const {type,id}=ui.modal;let title=''
  else if(type==='review'){const p=C.person(id),r=ui.drafts.review;title='回望 · '+p.name;body=`<p class="smallprint">第 ${C.cycleOf(s)+1} 个周期。回看这段时间的相处，由你确认自己的意愿。</p><label class="field"><span>此刻的心意</span><select id="review-intent">${Object.entries(C.INTENTS).map(([value,label])=>`<option value="${value}"${r.intent===value?' selected':''}>${label}</option>`).join('')}</select></label><label class="check-row"><input type="checkbox" id="review-auth"${r.authorized?' checked':''}><span>允许本周期参与双向心意确认<small>只有双方都愿意进一步了解时，才揭晓共同意愿。你可以随时取消授权。</small></span></label>${btn('确认本周期意愿','save-review',id,'btn',!!ui.busy)}<p class="smallprint">私人分数始终保密。授权下一周期会过期，不自动续期。</p>`}
  else if(type==='knock'){title='轻叩窗扉';body=`<p class="serif note-text">这一次，你想更了解${e(C.person(id).name)}。</p><p class="smallprint">本周期仅一次机会。确认后即使用，无论是否形成双向心意。对方不需要也查询你；其当期已授权的积极意愿即可匹配。</p><label class="check-row"><input type="checkbox" id="knock-consent"><span>我愿意进一步了解 TA，并同意在双向时让彼此知道。</span></label>${btn('确认轻叩','submit-knock',id,'btn',!!ui.busy)}`}
  else if(type==='result'){const c=s.confirmations.find(c=>c.id===id);title=c.mutual?'回响':'轻叩窗扉';body=`<div class="result-card ${c.mutual?'':'neutral'}"><h3>${c.mutual?'你的心意，有了回响。':'本次暂未确认双向心意。'}</h3><p>${c.mutual?'你们都愿意进一步了解彼此。按舒服的节奏继续，不必急着推进关系。':'本次没有确认到双向积极意愿。对方不会收到查询通知，也不会知道你曾轻叩。'}</p></div><p class="smallprint">这里是虚拟人物的演示结果，由 Demo 面板设置，不代表 AI 真的产生情感。</p>${btn('回到我的心笺','result-done','','btn secondary')}`}
- else if(type==='profile'){const p=ui.drafts.profile;title='留一扇窗';body=`<label class="field"><span>我的名字</span><input id="profile-name" maxlength="20" value="${e(p.name)}"></label><label class="field"><span>希望对方怎样来认识你</span><textarea id="profile-habit" class="editor" maxlength="100">${e(p.habit)}</textarea></label><label class="field"><span>一个愿意聊的话题</span><textarea id="profile-topic" class="editor" maxlength="100">${e(p.topic)}</textarea></label><label class="check-row"><input type="checkbox" id="allow-notes"${p.allowNotes?' checked':''}><span>接收陌生人纸条<small>关闭后不接收真人纸条，也不能注入新的演示来信。</small></span></label>${btn('保存这扇窗','save-profile','','btn',!!ui.busy)}`}
+ else if(type==='profile'){const p=ui.drafts.profile;title='留一扇窗';body=`<label class="field"><span>我的名字</span><input id="profile-name" maxlength="20" value="${e(p.name)}"></label><label class="field"><span>希望对方怎样来认识你</span><textarea id="profile-habit" class="editor" maxlength="100">${e(p.habit)}</textarea></label><label class="field"><span>一个愿意聊的话题</span><textarea id="profile-topic" class="editor" maxlength="100">${e(p.topic)}</textarea></label><label class="check-row"><input type="checkbox" id="allow-notes"${p.allowNotes?' checked':''}><span>接收陌生人纸条<small>关闭后不接收真人纸条，也不能注入新的演示来信。</small></span></label><label class="check-row"><input type="checkbox" id="favorability-enabled"${p.favorabilityEnabled!==false?' checked':''}><span>开启好感度系统<small>关闭后，他人无法查看你对TA的好感度，你也无法查看任何人对你的好感度（双向保密）。</small></span></label>${btn('保存这扇窗','save-profile','','btn',!!ui.busy)}`}
+ else if(type==='favorability'){
+  const conv=real.conversations.find(c=>c.id===id);
+  const name=conv?.person.name||'对方';
+  title='好感度分析 · 与 '+e(name);
+  const fav=ui.favorability[id],busy=!!ui.favorabilityBusy[id];
+  if(busy){
+   body=`<div class="fav-loading"><div class="draw-idle-orbit"></div><p>${ui.busy==='analyze-fav'?'大模型正在深度分析对话细节…':'正在计算四维好感度指标…'}</p></div>`;
+  }else if(!fav||fav.error){
+   body=`<div class="notice">${e(fav?.error||'无法获取好感度数据')}</div>${btn('重新加载','load-fav',id,'btn')}`;
+  }else if(!fav.canView){
+   if(fav.reason==='SELF_DISABLED'){
+    body=`<div class="fav-disabled-card"><div class="fav-disabled-icon">${icon('lock')}</div><h3>你已关闭好感度系统</h3><p>根据好感度互通机制：当你关闭好感度系统时，他人无法查看你对TA的好感度，你也无法查看任何人对你的好感度。</p><p class="smallprint">开启后，即可在双方均允许的情况下查看详尽的好感度指标与 AI 语义分析。</p>${btn('开启好感度系统','toggle-fav-on',id,'btn',!!ui.busy)}</div>`;
+   }else{
+    body=`<div class="fav-disabled-card"><div class="fav-disabled-icon">${icon('lock')}</div><h3>对方已开启隐私保护</h3><p>对方（${e(name)}）关闭了自身的好感度系统。为了尊重对方的隐私，好感度信息已双向隐藏。</p><p class="smallprint">当双方均开启好感度系统时，好感度与分析将自动恢复展示。</p></div>`;
+   }
+  }else{
+   const f=fav.factors;
+   body=`<div class="fav-score-card tier-${fav.tier==='怦然心动'?'gold':fav.tier==='相谈甚欢'?'purple':'blue'}"><div class="fav-score-header"><div><span class="fav-badge">${e(fav.badge)} ${e(fav.tier)}</span><h3>${e(fav.title)}</h3></div><div class="fav-big-number">${fav.score}<span> / 100</span></div></div><p class="fav-desc">${e(fav.desc)}</p></div><div class="fav-factors-grid"><div class="fav-factor-card"><div class="fav-factor-head"><span class="fav-factor-icon">⚡</span><div><b>回复速度</b><small>回得越快，好感度越高</small></div><span class="fav-factor-score">${f.reply.score}分</span></div><p class="fav-factor-detail">${f.reply.avgMinutes!==null?`平均回复 <b>${f.reply.avgMinutes}</b> 分钟 · 中位数 <b>${f.reply.medianMinutes}</b> 分钟`:'暂无对方回信'}</p><span class="tag">${e(f.reply.desc)}</span></div><div class="fav-factor-card"><div class="fav-factor-head"><span class="fav-factor-icon">🔥</span><div><b>连续互动与时长</b><small>连续天数续火花 + 单次时长</small></div><span class="fav-factor-score">${f.continuity.score}分</span></div><p class="fav-factor-detail">连续畅聊 <b>${f.continuity.streakDays}</b> 天 · 最长单次持续 <b>${f.continuity.maxSessionMinutes}</b> 分钟</p><span class="tag">${e(f.continuity.desc)}</span></div><div class="fav-factor-card"><div class="fav-factor-head"><span class="fav-factor-icon">📝</span><div><b>字数倾斜比</b><small>输出明显更多方更具好感</small></div><span class="fav-factor-score">${f.wordRatio.score}分</span></div><p class="fav-factor-detail">对方 <b>${f.wordRatio.targetWords}</b> 字 vs 我方 <b>${f.wordRatio.myWords}</b> 字</p><div class="fav-ratio-bar"><div class="fav-ratio-fill" style="width:${f.wordRatio.ratio}%"></div></div><small class="fav-ratio-label">对方表达占比 ${f.wordRatio.ratio}%</small><span class="tag">${e(f.wordRatio.desc)}</span></div><div class="fav-factor-card fav-ai-card"><div class="fav-factor-head"><span class="fav-factor-icon">🤖</span><div><b>大模型内容与语义分析</b><small>深度理解分享欲与情感共鸣</small></div><span class="fav-factor-score">${f.llm?f.llm.score+'分':'规则模式'}</span></div>${f.llm?`<p class="fav-factor-detail"><b>情感态度：</b>${e(f.llm.attitude)}</p><p class="fav-ai-summary">${e(f.llm.summary)}</p><div class="tags">${f.llm.highlights.map(h=>`<span class="tag">${e(h)}</span>`).join('')}</div>`:`<p class="fav-ai-summary">尚未进行 AI 语义分析。点击下方按钮，调用大模型对近期真实对话进行语义与好感洞察。</p>`}<div class="fav-ai-action">${btn(f.llm?'重新运行大模型分析':'启动大模型好感分析','analyze-fav',id,'btn small secondary',!ai.ready||!!ui.busy)}</div></div></div><div class="fav-privacy-footer"><small>${icon('lock')} 隐私互通保护：仅双方均开启好感度系统时方可查看。</small>${btn('关闭我的好感度系统','toggle-fav-off',id,'link-btn',!!ui.busy)}</div>`;
+  }
+ }
  else if(type==='appearance'){title='场景与形象';body=`<p class="smallprint">对话页右上角的「场景」按钮可选用内置的二次元背景；这里上传的自定义背景会优先展示。背景只用于你自己的对话场景。形象会展示在你的匹配资料与真人对话中。AI 演示人物没有上传形象时显示问号人。</p><div class="profile-media"><div><div class="profile-media-preview">${media.background?`<img src="${e(backgroundUrl||'/api/media/background?v='+media.backgroundVersion)}" alt="当前场景背景">`:'默认场景背景'}</div><label class="field"><span>上传场景背景（PNG/JPEG/WebP，最多 3 MB）</span><input type="file" data-media="background" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${media.background?btn('恢复默认背景','delete-media','background','link-btn'):''}${ui.backgroundError?btn('重新加载背景','retry-background','','link-btn'):''}</div><div><div class="profile-media-preview avatar-preview">${media.avatar?`<img src="/api/media/avatar/${e(account.id)}?v=${media.avatarVersion}" alt="我的虚拟形象">`:'?'}</div><label class="field"><span>上传我的虚拟形象（PNG/JPEG/WebP，最多 2 MB）</span><input type="file" data-media="avatar" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${media.avatar?btn('移除形象','delete-media','avatar','link-btn'):''}</div></div>`}
  else if(type==='matching'){const p=ui.drafts.matching;title='我的匹配资料';body=`<p class="smallprint">自我介绍可能展示给匹配对象；两段介绍会发送给已配置的 AI 服务提取标签。修改后会重新提取。</p><label class="field"><span>介绍一下自己（10–500 字）</span><textarea id="match-self" class="editor" maxlength="500">${e(p.selfIntro)}</textarea></label><label class="field"><span>你希望遇见怎样的人（10–500 字）</span><textarea id="match-desired" class="editor" maxlength="500">${e(p.desiredIntro)}</textarea></label><label class="check-row"><input id="match-consent" type="checkbox"><span>我同意将自我介绍展示给匹配对象，并将两段介绍发送给已配置的 AI 服务提取标签。</span></label>${btn(ui.busy?'正在保存…':'保存并提取标签','save-matching','','btn',!!ui.busy)}`}
  else if(type==='demo'){title='Demo 控制面板';body=`<div class="notice">只改变本地演示状态，不代表真实用户意愿。</div><div class="demo-block"><h3>时间与周期</h3><p>当前 ${date(C.clockNow(s))} · 第 ${C.cycleOf(s)+1} 周期 · 已推进 ${s.offsetDays} 天</p><div class="row-actions">${btn('推进 1 天','advance','1','btn secondary small',!!ui.busy)}${btn('推进 7 天','advance','7','btn secondary small',!!ui.busy)}</div><p>按模拟日期计算额度；推进到新周期后，双方需要重新确认意愿。</p></div><div class="demo-block"><h3>虚拟人物状态</h3><label class="field"><span>选择人物</span><select id="demo-person">${accessiblePeople().map(p=>`<option value="${p.id}"${ui.selected===p.id?' selected':''}>${e(p.name)}</option>`).join('')}</select></label><label class="field"><span>当期意愿（仅供演示控制）</span><select id="demo-intent">${Object.entries(C.INTENTS).map(([v,t])=>`<option value="${v}"${s.scenarios[ui.selected].intent===v?' selected':''}>${t}</option>`).join('')}</select></label><label class="check-row"><input type="checkbox" id="demo-auth"${s.scenarios[ui.selected].authorized?' checked':''}><span>当期授权有效</span></label>${btn('保存为本周期状态','save-scenario','','btn secondary small',!!ui.busy)}<p>此设置不会展示在正常用户资料中，也不会发送给 AI。</p></div><div class="demo-block"><h3>体验收件人流程</h3><p>给所选人物注入一张明确标注的预设来信；实际回复由服务端 AI 生成。已有互动或被屏蔽的人物不能注入。</p>${btn('模拟收到纸条','inject','','btn secondary small',!!ui.busy)}</div><div class="row-actions">${btn('重置全部演示数据','reset-confirm','','link-btn danger',!!ui.busy)}</div><p class="smallprint">重置不会修改服务端 AI 配置，账号本身也会保留，只清除纸条、聊天、心笺、授权与模拟时间。</p>`}
@@ -209,6 +250,7 @@ async function boot(){
   await loadBackground().catch(()=>{});
   try{await refreshDraw()}catch(err){ui.drawError=err.message}
   try{real=await get('/api/real')}catch{real={notes:[],conversations:[]}}
+  if(real.conversations.length)loadFavorability(real.conversations[0].id).catch(()=>{});
  }catch(err){ai.ready=false;ai.error=err.message||'服务暂不可用，请稍后重试。'}
  render();
  setInterval(()=>{if(account&&!document.hidden&&ui.tab==='meet'&&!ui.busy&&!ui.drawAnimating&&!dialog.open){const old=JSON.stringify(dailyDraw);refreshDraw().then(()=>{if(old!==JSON.stringify(dailyDraw))renderKeepingDraftFocus()}).catch(()=>{})}if(account&&!document.hidden&&['meet','notes','chat'].includes(ui.tab)&&!ui.busy)refreshReal().catch(()=>{})},6000);
@@ -225,6 +267,7 @@ async function refreshReal(){
  const next=await get('/api/real'),changed=JSON.stringify(next)!==JSON.stringify(real);
  if(!changed)return;
  real=next;
+ if(ui.realChatId)loadFavorability(ui.realChatId).catch(()=>{});
  if(dialog.open)return;
  renderKeepingDraftFocus();
  const active=real.conversations.find(c=>c.id===ui.realChatId),incoming=active?.messages.at(-1);
@@ -256,7 +299,7 @@ async function sendChat(id,text){
 async function sendRealChat(id,text){
  if(ui.busy)throw new Error('请等待当前请求结束后再操作。');
  ui.busy='real-send';render();
- try{ui.drafts['chat:'+id]=text;real=await post('/api/real/message',{conversationId:id,text});delete ui.drafts['chat:'+id];delete ui.replyChoice[id];delete ui.composing[id]}
+ try{ui.drafts['chat:'+id]=text;real=await post('/api/real/message',{conversationId:id,text});delete ui.drafts['chat:'+id];delete ui.replyChoice[id];delete ui.composing[id];delete ui.favorability[id];loadFavorability(id).catch(()=>{})}
  finally{ui.busy='';render()}
 }
 async function action(action,id){
@@ -267,9 +310,22 @@ async function action(action,id){
  if(action==='paper-tab'){ui.paperTab=id;render();return}
  if(action==='open-chat'){closeModal();ui.person=id;ui.realChatId=null;ui.tab='chat';ui.error='';render();const latest=[...(s.messages[id]||[])].reverse().find(m=>m.role==='assistant');if(latest&&ui.guidance[id]?.messageId!==latest.id)await generateGuidance(id);return}
  if(action==='show-demo-chat'){ui.realChatId=null;render();return}
- if(action==='open-real-chat'){if(!real.conversations.some(c=>c.id===id))await refreshReal();ui.realChatId=id;ui.tab='chat';closeModal();render();const latest=[...(real.conversations.find(c=>c.id===id)?.messages||[])].reverse().find(m=>m.role==='assistant');if(latest&&ui.guidance[id]?.messageId!==latest.id)await generateGuidance(id);return}
+ if(action==='open-real-chat'){if(!real.conversations.some(c=>c.id===id))await refreshReal();ui.realChatId=id;ui.tab='chat';closeModal();render();if(!ui.favorability[id])loadFavorability(id).catch(()=>{});const latest=[...(real.conversations.find(c=>c.id===id)?.messages||[])].reverse().find(m=>m.role==='assistant');if(latest&&ui.guidance[id]?.messageId!==latest.id)await generateGuidance(id);return}
  if(action==='logout'){try{await post('/api/logout',{})}catch{}location.replace('/login.html');return}
- if(['person','report','demo','note','feel','review','reply-note','real-note','real-reply','profile','appearance','matching','knock'].includes(action)){if(['note','reply-note'].includes(action)&&!ai.ready){toast('AI 服务暂不可用，请稍后再试。');return}openModal(action,id);return}
+ if(['person','report','demo','note','feel','review','reply-note','real-note','real-reply','profile','appearance','matching','knock','favorability'].includes(action)){if(['note','reply-note'].includes(action)&&!ai.ready){toast('AI 服务暂不可用，请稍后再试。');return}openModal(action,id);return}
+ if(action==='load-fav'){await loadFavorability(id);return}
+ if(action==='analyze-fav'){requireAI();ui.busy='analyze-fav';renderModal();try{await loadFavorability(id,true);toast('大模型好感度分析已完成。')}finally{ui.busy='';render()}return}
+ if(action==='toggle-fav-on'||action==='toggle-fav-off'){
+  const enable=action==='toggle-fav-on';ui.busy='toggle-fav';renderModal();
+  try{
+   const res=await post('/api/favorability/toggle',{enabled:enable});
+   s.profile.favorabilityEnabled=res.favorabilityEnabled;
+   ui.favorability={};
+   toast(enable?'已开启好感度系统。':'已关闭好感度系统，双向隐藏好感度。');
+   if(id)await loadFavorability(id);
+  }finally{ui.busy='';render()}
+  return;
+ }
  if(action==='toggle-history'){ui.showHistory=!ui.showHistory;render();return}
  if(action==='scene-picker'){ui.scenePicker=!ui.scenePicker;render();return}
  if(action==='pick-scene'){saveScene(id);ui.scenePicker=false;render();return}
@@ -329,7 +385,7 @@ async function action(action,id){
  else if(action==='block'){closeModal();toast('已屏蔽此人物，并撤回揭晓授权。')}
  else if(action==='save-feeling'){closeModal();toast('已记入心笺，仅自己可见。')}
  else if(action==='save-review'){closeModal();toast('已保存本周期的意愿与授权。')}
- else if(action==='save-profile'){closeModal();toast('已保存你的交流习惯与话题。')}
+ else if(action==='save-profile'){closeModal();ui.favorability={};toast('已保存你的交流习惯与话题。')}
  else if(action==='advance')toast('已推进演示日期。')
  else if(action==='save-scenario')toast('虚拟人物的本周期状态已更新。')
  else if(action==='inject'){closeModal();ui.tab='notes';ui.paperTab='in';toast('已加入一张标注为预设的演示来信。')}
@@ -354,7 +410,7 @@ document.addEventListener('keydown',event=>{
  }
 });
 document.addEventListener('input',event=>{const t=event.target;if(t.dataset.draft){ui.drafts[t.dataset.draft]=t.value;document.querySelectorAll('[data-counter]').forEach(counter=>{if(counter.dataset.counter===t.dataset.draft)counter.textContent=Array.from(t.value).length+' / '+t.maxLength})}if(t.id==='score-input'){ui.drafts.score=Number(t.value);document.getElementById('score-value').textContent=t.value}if(t.id==='memo')ui.drafts.memo=t.value;const field={'profile-name':'name','profile-habit':'habit','profile-topic':'topic'}[t.id];if(field)ui.drafts.profile[field]=t.value;if(t.id==='match-self')ui.drafts.matching.selfIntro=t.value;if(t.id==='match-desired')ui.drafts.matching.desiredIntro=t.value});
-document.addEventListener('change',event=>{const t=event.target;if(t.id==='chat-switch'){const v=t.value;if(v.startsWith('real:'))action('open-real-chat',v.slice(5)).catch(err=>toast(err.message));else action('open-chat',v.slice(5)).catch(err=>toast(err.message));return}if(t.dataset.media){uploadMedia(t.dataset.media,t.files?.[0]).catch(err=>toast(err.message));return}if(t.dataset.intent)ui.intents[t.dataset.intent]=t.value;if(t.id==='review-intent')ui.drafts.review.intent=t.value;if(t.id==='review-auth')ui.drafts.review.authorized=t.checked;if(t.id==='allow-notes')ui.drafts.profile.allowNotes=t.checked;if(t.id==='demo-person'){ui.selected=t.value;renderModal()}});
+document.addEventListener('change',event=>{const t=event.target;if(t.id==='chat-switch'){const v=t.value;if(v.startsWith('real:'))action('open-real-chat',v.slice(5)).catch(err=>toast(err.message));else action('open-chat',v.slice(5)).catch(err=>toast(err.message));return}if(t.dataset.media){uploadMedia(t.dataset.media,t.files?.[0]).catch(err=>toast(err.message));return}if(t.dataset.intent)ui.intents[t.dataset.intent]=t.value;if(t.id==='review-intent')ui.drafts.review.intent=t.value;if(t.id==='review-auth')ui.drafts.review.authorized=t.checked;if(t.id==='allow-notes')ui.drafts.profile.allowNotes=t.checked;if(t.id==='favorability-enabled')ui.drafts.profile.favorabilityEnabled=t.checked;if(t.id==='demo-person'){ui.selected=t.value;renderModal()}});
 dialog.addEventListener('cancel',()=>{ui.modal=null});
 function guidanceInline(id,data){
  const busy=ui.guidanceBusy[id],error=ui.guidanceError[id];

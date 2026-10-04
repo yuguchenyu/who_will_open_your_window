@@ -15,6 +15,7 @@ import {drawState,draw,decide,remove,collection,isCollected} from './lib/draw.mj
 import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags} from './lib/matching.mjs';
 import {saveMedia,deleteMedia,mediaStatus,getMedia} from './lib/media.mjs';
 import {realSnapshot,sendRealNote,respondRealNote,sendRealMessage,conversation,canViewAvatar} from './lib/real-chat.mjs';
+import {getConversationFavorability, makeFavorabilityMessages, parseFavorabilityLlm, calculateReplySpeed, calculateContinuity, calculateWordRatio, composeFavorabilityScore} from './lib/favorability.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url));
 export function readConfig(root=ROOT,env=process.env){
@@ -125,7 +126,7 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
   function json(status,data){res.writeHead(status,{...headers,'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data))}
   function redirect(res,location){res.writeHead(302,{...headers,Location:location});res.end()}
   // 只把能给浏览器看的字段发出去 —— users 表里还有 password_hash 和 salt。
-  const publicUser=user=>({id:user.id,username:user.username,name:user.name});
+  const publicUser=user=>({id:user.id,username:user.username,name:user.name,favorabilityEnabled:user.favorability_enabled!==0});
   // 解析当前请求的会话。要么返回 {user,token}，要么返回 {denied}。
   // "被顶掉"要和"从没登录过"分开，因为前者需要给用户一句解释，后者不需要。
   function authenticate(req){
@@ -184,6 +185,13 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
     const who=authenticate(req);if(who.denied)return json(401,who.denied);
     return json(200,realSnapshot(database,who.user.id));
+   }
+   if(url.pathname==='/api/real/favorability'){
+    if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
+    const who=authenticate(req);if(who.denied)return json(401,who.denied);
+    const conversationId=url.searchParams.get('conversationId');
+    if(!conversationId)throw new ApiError('缺少会话参数。',400,'INVALID_INPUT');
+    return json(200,getConversationFavorability(database,conversationId,who.user.id));
    }
 
    if(req.method==='GET'&&(url.pathname==='/api/media/background'||url.pathname.startsWith('/api/media/avatar/'))){
@@ -261,6 +269,53 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    if(url.pathname==='/api/real/message'){
     sendRealMessage(database,user.id,body.conversationId,body.text);
     return json(200,realSnapshot(database,user.id));
+   }
+   if(url.pathname==='/api/favorability/toggle'){
+    const enabled=body.enabled!==false?1:0;
+    database.prepare('UPDATE users SET favorability_enabled=? WHERE id=?').run(enabled,user.id);
+    return json(200,{favorabilityEnabled:enabled===1});
+   }
+   if(url.pathname==='/api/real/favorability/analyze'){
+    const conversationId=body.conversationId;
+    if(!conversationId)throw new ApiError('缺少会话参数。',400,'INVALID_INPUT');
+    const conv=database.prepare('SELECT * FROM real_conversations WHERE id=?').get(conversationId);
+    if(!conv||(conv.user_a!==user.id&&conv.user_b!==user.id))throw new ApiError('会话不存在。',404,'NOT_FOUND');
+    const otherUserId=conv.user_a===user.id?conv.user_b:conv.user_a;
+    const me=database.prepare('SELECT id,name,favorability_enabled FROM users WHERE id=?').get(user.id);
+    const other=database.prepare('SELECT id,name,favorability_enabled FROM users WHERE id=?').get(otherUserId);
+    if(me.favorability_enabled===0){
+     return json(200,{canView:false,reason:'SELF_DISABLED',message:'你已关闭好感度系统。开启后可查看与对方的好感度分析。',targetName:other.name});
+    }
+    if(other.favorability_enabled===0){
+     return json(200,{canView:false,reason:'OTHER_DISABLED',message:'对方已关闭好感度系统，好感度信息已隐藏。',targetName:other.name});
+    }
+    const messages=database.prepare('SELECT id,sender_id,body,created_at FROM real_messages WHERE conversation_id=? ORDER BY id ASC').all(conv.id);
+    const reply=calculateReplySpeed(messages,otherUserId);
+    const continuity=calculateContinuity(messages);
+    const wordRatio=calculateWordRatio(messages,otherUserId);
+    let llmResult=null;
+    if(config.configured&&messages.length>0){
+     if(active>=4)throw new ApiError('已有多个请求进行中，请稍后重试。',429,'BUSY');
+     active++;
+     try{
+      const llmMessages=makeFavorabilityMessages(messages,me.name,other.name,otherUserId);
+      const raw=await completion(config,llmMessages,fetchImpl,timeout);
+      llmResult=parseFavorabilityLlm(raw);
+     }catch(err){
+      // LLM 失败时不阻塞计算，降级到客观指标
+      console.error('LLM favorability error:', err.message);
+     }finally{active--}
+    }
+    const composed=composeFavorabilityScore(reply,continuity,wordRatio,llmResult);
+    const now=Date.now();
+    const lastMsgId=messages.length>0?messages.at(-1).id:0;
+    database.prepare(`
+     INSERT INTO conversation_favorability (conversation_id, target_user_id, score, factors, last_message_id, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(conversation_id, target_user_id) DO UPDATE SET
+       score=excluded.score, factors=excluded.factors, last_message_id=excluded.last_message_id, updated_at=excluded.updated_at
+    `).run(conv.id,otherUserId,composed.score,JSON.stringify(composed),lastMsgId,now);
+    return json(200,{canView:true,targetName:other.name,targetId:other.id,...composed,updatedAt:now});
    }
 
    if(url.pathname==='/api/draw')return json(200,draw(database,user.id));
