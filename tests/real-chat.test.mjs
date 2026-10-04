@@ -36,8 +36,11 @@ test('matched users can exchange a note and chat while strangers cannot',async t
  assert.equal((await post(c,'/api/real/message',{conversationId,text:'偷看'})).status,404);
  assert.equal((await post(a,'/api/real/message',{conversationId,text:'周末一起聊聊散步路线？'})).status,200);
  assert.equal((await post(b,'/api/real/message',{conversationId,text:'好呀，你喜欢哪条路线？'})).status,200);
+ assert.equal((await post(b,'/api/real/message',{conversationId,text:'比如西湖十景那条线。'})).status,200);
+ assert.equal((await post(b,'/api/real/message',{conversationId,text:'或者九溪十八涧也很不错。'})).status,200);
  const snapshot=await(await get(a,'/api/real')).json(),chat=snapshot.conversations[0];
- assert.equal(chat.messages.length,4);assert.equal(chat.messages.at(-1).role,'assistant');
+ assert.equal(chat.messages.length,6);assert.equal(chat.messages.at(-1).role,'assistant');
+ assert.equal(chat.messages.at(-1).content,'或者九溪十八涧也很不错。');
  assert(chat.messages.every(m=>Number.isFinite(m.at)));
  const result=await post(a,'/api/guidance',{conversationId,messageId:chat.messages.at(-1).id,messages:[{content:'FORGED_PRIVATE'}]});
  assert.equal(result.status,200);assert.equal((await result.json()).suggestions.length,3);
