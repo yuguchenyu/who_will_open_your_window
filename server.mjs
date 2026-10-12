@@ -116,7 +116,7 @@ export function parseGuidance(raw){
 }
 export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
  const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));
- let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css','/draw.css':'draw.css'};
+ let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css','/draw.css':'draw.css','/portraits.mjs':'portraits.mjs'};
  async function analyzeProfile(userId){
   if(!config.configured)return {code:'NOT_CONFIGURED',message:'AI 尚未配置，请检查本地 .env 并重启服务。'};
   if(active>=4)return {code:'BUSY',message:'AI 正在处理其他请求，请稍后重试提取标签。'};
@@ -219,7 +219,7 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     const background=url.pathname==='/api/media/background';
     const target=background?who.user.id:url.pathname.slice('/api/media/avatar/'.length);
     if(!background&&!canViewAvatar(database,who.user.id,target))return json(404,{error:'图片不存在。',code:'NOT_FOUND'});
-    const media=getMedia(database,target,background?'background':'avatar');
+    const media=getMedia(database,target,background?'background':'avatar',url.searchParams.get('emotion')||'default');
     if(!media)return json(404,{error:'图片不存在。',code:'NOT_FOUND'});
     res.writeHead(200,{...headers,'Content-Type':media.mime,'Content-Length':media.bytes.length,'Cache-Control':'private, max-age=300'});
     return res.end(media.bytes);
@@ -273,8 +273,8 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    }
 
    if(url.pathname==='/api/media'){
-    if(body.action==='save')saveMedia(database,user.id,body.kind,body.data);
-    else if(body.action==='delete')deleteMedia(database,user.id,body.kind);
+    if(body.action==='save')saveMedia(database,user.id,body.kind,body.data,body.emotion);
+    else if(body.action==='delete')deleteMedia(database,user.id,body.kind,body.emotion);
     else throw new ApiError('图片操作不正确。');
     return json(200,{media:mediaStatus(database,user.id)});
    }

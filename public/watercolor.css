@@ -102,3 +102,5 @@ body{background:radial-gradient(ellipse at 0 12%,#e8efdf80,transparent 45%),radi
   .fav-big-number{align-self:flex-end}
   .fav-privacy-footer{flex-direction:column;align-items:flex-start}
 }
+
+.emotion-portraits{margin-top:24px}.emotion-portrait-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.emotion-portrait-card{min-width:0;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fafbf5}.emotion-portrait-card h4{margin:0 0 8px}.emotion-portrait-preview{height:160px;display:grid;place-items:center;background:#edf1e6;border-radius:8px;overflow:hidden;margin-bottom:10px}.emotion-portrait-preview img{width:100%;height:100%;object-fit:contain}.emotion-portrait-preview span{font-size:11px;color:var(--muted);text-align:center;padding:10px}.emotion-portrait-card input{max-width:100%;min-width:0;font-size:11px}.emotion-portrait-card .field{margin:0}.emotion-portrait-card .link-btn{margin-top:8px}@media(max-width:400px){.emotion-portrait-grid{grid-template-columns:1fr}}
