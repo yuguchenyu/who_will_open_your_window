@@ -14,6 +14,7 @@ import {readState} from './lib/state.mjs';
 import {drawState,draw,decide,remove,collection,isCollected} from './lib/draw.mjs';
 import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags} from './lib/matching.mjs';
 import {saveMedia,deleteMedia,mediaStatus,getMedia} from './lib/media.mjs';
+import {createPortraitGeneration} from './lib/portrait-generation.mjs';
 import {realSnapshot,sendRealNote,respondRealNote,sendRealMessage,conversation,canViewAvatar} from './lib/real-chat.mjs';
 import {getConversationFavorability, makeFavorabilityMessages, parseFavorabilityLlm, calculateReplySpeed, calculateContinuity, calculateWordRatio, composeFavorabilityScore} from './lib/favorability.mjs';
 
@@ -36,7 +37,10 @@ export function readConfig(root=ROOT,env=process.env){
  const lan=['1','true'].includes(lanFlag)||allowIps.length>0;
  // 数据库默认落在项目的 runtime/ 下，那个目录已经在 .gitignore 里 —— 别把大家的账号提交上去。
  const dbPath=take('DB_PATH')||path.join(root,'runtime','app.db');
- return {base,key,model,port,lan,lanFlag,allowIps,dbPath,configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
+ const imageBase=(take('AI_IMAGE_BASE_URL')||base).replace(/\/+$/,'');
+ const imageKey=take('AI_IMAGE_API_KEY')||key, imageModel=take('AI_IMAGE_MODEL')||'gpt-image-2.5-sunburst';
+ let imageValid=false;try{const u=new URL(imageBase);imageValid=(u.protocol==='https:'||(u.protocol==='http:'&&(allowHttpAi||['127.0.0.1','localhost','[::1]'].includes(u.hostname))))&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.hostname.endsWith('.example')}catch{}
+ return {base,key,model,port,lan,lanFlag,allowIps,dbPath,imageBase,imageKey,imageModel,imageConfigured:imageValid&&!!imageKey&&imageKey!=='your-api-key',configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
 }
 // 如实描述当前生效的访问策略，供启动日志使用。
 export function accessPolicy(config){
@@ -114,8 +118,9 @@ export function parseGuidance(raw){
  const suggestions=parseSuggestions(JSON.stringify({suggestions:obj.suggestions}));
  return {interpretations:items.map(v=>({intent:v.intent.trim(),confidence:v.confidence,reason:v.reason.trim()})),suggestions};
 }
-export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
+export function createServer(config,{fetchImpl=fetch,timeout=35000,imageTimeout=180000,db}={}){
  const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));
+ const portraits=createPortraitGeneration(database,config,{fetchImpl,timeout:imageTimeout});
  let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css','/draw.css':'draw.css','/portraits.mjs':'portraits.mjs'};
  async function analyzeProfile(userId){
   if(!config.configured)return {code:'NOT_CONFIGURED',message:'AI 尚未配置，请检查本地 .env 并重启服务。'};
@@ -139,7 +144,7 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
  // 局域网模式下放开的只是本机自己的网卡地址，陌生 Host 和端口不符仍然拒绝。
  const lanNames=config.lan?[...lanAddresses()]:[];
  const allowIps=new Set(config.allowIps||[]);
- return http.createServer(async(req,res)=>{
+ const server=http.createServer(async(req,res)=>{
   const port=req.socket.localPort;const origin=`http://127.0.0.1:${port}`;
   const hosts=new Set([`127.0.0.1:${port}`,`localhost:${port}`,...lanNames.map(ip=>`${ip}:${port}`)]);
   const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"};
@@ -189,7 +194,14 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
     const who=authenticate(req);
     if(who.denied)return json(401,who.denied);
-    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id),matchingProfile:matchingProfile(database,who.user.id),media:mediaStatus(database,who.user.id),aiAvailable:config.configured});
+    return json(200,{user:publicUser(who.user),state:readState(database,who.user.id),matchingProfile:matchingProfile(database,who.user.id),media:mediaStatus(database,who.user.id),aiAvailable:config.configured,imageGenerationAvailable:portraits.available});
+   }
+   if(req.method==='GET'&&url.pathname.startsWith('/api/portraits/generation')){
+    const who=authenticate(req);if(who.denied)return json(401,who.denied);
+    if(url.pathname==='/api/portraits/generation')return json(200,portraits.state(who.user.id));
+    const match=url.pathname.match(/^\/api\/portraits\/generation\/([a-f0-9-]{36})\/image$/i);
+    if(!match)return json(404,{error:'预览不存在。',code:'NOT_FOUND'});
+    const bytes=portraits.image(who.user.id,match[1]);res.writeHead(200,{...headers,'Content-Type':'image/png','Content-Length':bytes.length});return res.end(bytes);
    }
    if(url.pathname==='/api/matches'){
     if(req.method!=='GET')return json(405,{error:'请求方法不正确。',code:'METHOD_NOT_ALLOWED'});
@@ -265,6 +277,9 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    const auth=authenticate(req);
    if(auth.denied)return json(401,auth.denied);
    const user=auth.user;
+   if(url.pathname==='/api/portraits/generate')return json(202,{available:portraits.available,job:portraits.start(user.id,body)});
+   if(url.pathname==='/api/portraits/apply')return json(200,portraits.apply(user.id,body.jobId));
+   if(url.pathname==='/api/portraits/discard')return json(200,portraits.discard(user.id,body.jobId));
 
    if(url.pathname==='/api/logout'){
     logout(database,auth.token);
@@ -420,6 +435,7 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,db}={}){
    }finally{active--}
   }catch(error){json(error.status||500,{error:error instanceof ApiError?error.message:'本地服务发生错误，请重试。',code:error.code||'INTERNAL'})}
  });
+ server.on('close',()=>portraits.close());return server;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const config=readConfig();const server=createServer(config);server.on('error',error=>{console.error(error.code==='EADDRINUSE'?`端口 ${config.port} 已被占用，请修改 .env 中的 PORT。`:'本地服务启动失败。');process.exitCode=1});

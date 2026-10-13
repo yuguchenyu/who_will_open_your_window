@@ -22,6 +22,8 @@ function saveScene(id){ui.preset=id;try{localStorage.setItem(SCENE_KEY,id)}catch
 const ui={tab:'meet',paperTab:'in',person:'xia',realChatId:null,modal:null,drafts:{},suggestions:{},guidance:{},guidanceError:{},guidanceBusy:{},favorability:{},favorabilityBusy:{},intents:{},busy:'',error:'',backgroundError:'',selected:'xia',showHistory:false,replyChoice:{},composing:{},menu:false,preset:loadScene(),scenePicker:false};
 let media={avatar:false,background:false,avatarVersion:0,backgroundVersion:0};
 let backgroundUrl='';
+let generation={available:false,job:null};
+let generationBusy=false,generationConsent=false;
 const ai={ready:false,error:''};
 const accessiblePeople=()=>C.PEOPLE.filter(p=>C.LEGACY_IDS.includes(p.id)||dailyDraw?.collection.some(c=>c.kind==='virtual'&&c.id===p.id)||C.hasContact(s,p.id));
 const date=t=>new Date(t).toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
@@ -250,11 +252,13 @@ async function boot(){
   const data=await get('/api/me');
   account=data.user;applyState(data.state);matchingProfile=data.matchingProfile;media=data.media||media;ai.ready=!!data.aiAvailable;ai.error='';restoreDrafts();
   await loadBackground().catch(()=>{});
+  await refreshGeneration().catch(()=>{});
   try{await refreshDraw()}catch(err){ui.drawError=err.message}
   try{real=await get('/api/real')}catch{real={notes:[],conversations:[]}}
   if(real.conversations.length)loadFavorability(real.conversations[0].id).catch(()=>{});
  }catch(err){ai.ready=false;ai.error=err.message||'服务暂不可用，请稍后重试。'}
  render();
+ setInterval(()=>{if(account&&!document.hidden&&(generation.job?.status==='running'||ui.modal?.type==='appearance'))refreshGeneration().catch(()=>{})},2000);
  setInterval(()=>{if(account&&!document.hidden&&ui.tab==='meet'&&!ui.busy&&!ui.drawAnimating&&!dialog.open){const old=JSON.stringify(dailyDraw);refreshDraw().then(()=>{if(old!==JSON.stringify(dailyDraw))renderKeepingDraftFocus()}).catch(()=>{})}if(account&&!document.hidden&&['meet','notes','chat'].includes(ui.tab)&&!ui.busy)refreshReal().catch(()=>{})},6000);
 }
 async function loadBackground(){
@@ -320,6 +324,15 @@ async function sendRealChat(id,text){
 async function action(action,id){
  if(action==='menu'){ui.menu=!ui.menu;render();return}
  ui.menu=false;
+ if(['generate-portrait','apply-portrait','discard-portrait'].includes(action)){
+  if(generationBusy)return;generationBusy=true;renderModal();
+  try{
+   const result=action==='generate-portrait'?await post('/api/portraits/generate',{emotion:id,consent:generationConsent,requestId:crypto.randomUUID()}):await post(action==='apply-portrait'?'/api/portraits/apply':'/api/portraits/discard',{jobId:id});
+   generation=result;if(result.media)media=result.media;
+   if(action==='apply-portrait')toast('情绪立绘已保存。');
+  }finally{generationBusy=false;render()}
+  return;
+ }
  if(action==='close'){closeModal();return}
  if(action==='tab'){closeModal();ui.tab=id;ui.error='';if(['meet','notes','chat'].includes(id))await refreshReal().catch(()=>{});if(id==='meet')try{await refreshDraw()}catch(err){ui.drawError=err.message}render();if(id==='chat'){const key=ui.realChatId||ui.person;if(!ui.guidance[key])await generateGuidance(key)}return}
  if(action==='paper-tab'){ui.paperTab=id;render();return}
@@ -430,8 +443,22 @@ document.addEventListener('input',event=>{const t=event.target;if(t.dataset.draf
 document.addEventListener('change',event=>{const t=event.target;if(t.id==='chat-switch'){const v=t.value;if(v.startsWith('real:'))action('open-real-chat',v.slice(5)).catch(err=>toast(err.message));else action('open-chat',v.slice(5)).catch(err=>toast(err.message));return}if(t.dataset.media){uploadMedia(t.dataset.media,t.files?.[0],t.dataset.emotion).catch(err=>toast(err.message));return}if(t.dataset.intent)ui.intents[t.dataset.intent]=t.value;if(t.id==='review-intent')ui.drafts.review.intent=t.value;if(t.id==='review-auth')ui.drafts.review.authorized=t.checked;if(t.id==='allow-notes')ui.drafts.profile.allowNotes=t.checked;if(t.id==='favorability-enabled')ui.drafts.profile.favorabilityEnabled=t.checked;if(t.id==='demo-person'){ui.selected=t.value;renderModal()}});
 dialog.addEventListener('cancel',()=>{ui.modal=null});
 function emotionUploads(){
- return `<section class="emotion-portraits" aria-label="情绪立绘"><h3>不同心情，不同的你</h3><p class="smallprint">每种情绪可选传一张 PNG/JPEG/WebP，最多 2 MB。建议使用相同尺寸、站位和透明背景，切换更自然。这里的表情只是画面效果。</p><div class="emotion-portrait-grid">${PORTRAIT_EMOTIONS.map(([id,label])=>{const version=media.avatarEmotions?.[id];return `<article class="emotion-portrait-card"><h4>${label}</h4><div class="emotion-portrait-preview">${version?`<img src="/api/media/avatar/${e(account.id)}?emotion=${id}&v=${version}" alt="我的${label}立绘">`:'<span>未上传 · 使用默认立绘</span>'}</div><label class="field"><span>${version?'替换':'上传'}${label}立绘</span><input type="file" data-media="avatar" data-emotion="${id}" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${version?btn('移除这张立绘','delete-emotion',id,'link-btn',!!ui.busy):''}</article>`}).join('')}</div></section>`;
+ const pending=['running','ready'].includes(generation.job?.status);
+ return `<section class="emotion-portraits" aria-label="情绪立绘"><h3>不同心情，不同的你</h3><p class="smallprint">上传默认立绘后，可用 Sunburst 生成同一人物的情绪全身立绘。保存前请检查人物一致性、头脚是否完整。透明背景会自动检查；AI 可能需要几分钟。每 24 小时最多 12 次。</p><label class="generation-consent"><input id="generation-consent" type="checkbox" ${generationConsent?'checked':''}>我同意将默认立绘发送给 AI 服务，生成会消耗服务额度。</label>${!generation.available?'<p class="smallprint">生图服务暂未配置。</p>':!media.avatar?'<p class="smallprint">请先上传默认立绘。</p>':''}${generationPanel()}<div class="emotion-portrait-grid">${PORTRAIT_EMOTIONS.map(([id,label])=>{const version=media.avatarEmotions?.[id];return `<article class="emotion-portrait-card"><h4>${label}</h4><div class="emotion-portrait-preview">${version?`<img src="/api/media/avatar/${e(account.id)}?emotion=${id}&v=${version}" alt="我的${label}立绘">`:'<span>未上传 · 使用默认立绘</span>'}</div>${btn('AI 生成'+label,'generate-portrait',id,'secondary',!generation.available||!media.avatar||!generationConsent||pending||generationBusy)}<label class="field"><span>${version?'替换':'上传'}${label}立绘</span><input type="file" data-media="avatar" data-emotion="${id}" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${version?btn('移除这张立绘','delete-emotion',id,'link-btn',!!ui.busy):''}</article>`}).join('')}</div></section>`;
 }
+function generationPanel(){
+ const job=generation.job;if(!job)return '';
+ const label=PORTRAIT_EMOTIONS.find(([id])=>id===job.emotion)?.[1]||'';
+ if(job.status==='running')return `<p class="generation-status" role="status">正在生成${e(label)}立绘…可以关闭设置继续聊天，稍后回来查看。</p>`;
+ if(job.status==='failed')return `<p class="generation-status" role="status">${e(job.error)}</p>`;
+ if(job.status!=='ready')return '';
+ return `<section class="generation-result"><h4>${e(label)}立绘预览</h4><div class="generation-preview"><img src="/api/portraits/generation/${e(job.id)}/image" alt="AI 生成的${e(label)}全身立绘"></div><p class="smallprint">棋盘格用于展示透明区域。确认人物、服装与全身构图后保存；预览保留 7 天。</p>${btn('保存为'+label+'立绘','apply-portrait',job.id,'primary',generationBusy)}${btn('放弃这张','discard-portrait',job.id,'secondary',generationBusy)}</section>`;
+}
+async function refreshGeneration(){
+ const next=await get('/api/portraits/generation'),changed=JSON.stringify(next)!==JSON.stringify(generation);generation=next;
+ if(changed&&ui.modal?.type==='appearance')renderModal();
+}
+document.addEventListener('change',event=>{if(event.target.id==='generation-consent'){generationConsent=event.target.checked;renderModal()}});
 function guidanceInline(id,data){
  const busy=ui.guidanceBusy[id],error=ui.guidanceError[id];
  return `<div class="vn-guidance" aria-label="拾言对话判断"><span class="vn-guidance-title">✧ 拾言判断 <small>仅是文字推测</small></span>${busy?'<span role="status">正在理解这句话…</span>':data?`<div class="vn-intents">${data.interpretations.map(v=>`<span title="${e(v.reason)}">${e(v.intent)} <b>${v.confidence}%</b></span>`).join('')}</div>`:`<span>${e(error||'暂无判断')}</span>`}${btn(data?'重看':'重试','guidance',id,'vn-inline',!ai.ready||!!ui.busy||!!busy)}</div>`;
