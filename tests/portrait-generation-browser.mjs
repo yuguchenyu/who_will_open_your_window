@@ -14,9 +14,15 @@ try{
  const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});await context.addCookies([{name:COOKIE_NAME,value:auth.token,url:base}]);const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  async function appearance(){await page.locator('.menu-btn').click();await page.locator('[data-action="tab"][data-id="me"]').click();await page.locator('[data-action="appearance"]').first().click()}
  await page.goto(base);if(await page.locator('.entry-skip').count())await page.locator('.entry-skip').click();await page.locator('.daily-encounter').waitFor();await appearance();
- const generate=page.locator('[data-action="generate-portrait"][data-id="happy"]');assert(await generate.isDisabled());await page.locator('#generation-consent').check();await generate.click();await page.getByText('正在生成开心立绘…',{exact:false}).waitFor();assert.equal(calls,1);
+ const generate=page.locator('[data-action="generate-portrait"][data-id="happy"]');assert(await generate.isDisabled());await page.locator('#generation-consent').check();await generate.click();await page.getByText('正在生成开心立绘',{exact:false}).waitFor();assert.equal(calls,1);
+ assert.equal(await page.locator('.generation-loading').getAttribute('aria-busy'),'true');
+ assert.equal(await page.locator('.generation-orbit').evaluate(el=>getComputedStyle(el).animationName),'none');
+ await page.emulateMedia({reducedMotion:'no-preference'});assert.equal(await page.locator('.generation-orbit').evaluate(el=>getComputedStyle(el).animationName),'portrait-orbit');
+ for(const width of [320,390,1440]){await page.setViewportSize({width,height:844});assert(!await page.locator('dialog').evaluate(el=>el.scrollWidth>el.clientWidth));}
+ await page.setViewportSize({width:390,height:844});await page.locator('.generation-loading').screenshot({path:'runtime/generation-animation.png'});
  await page.locator('[data-action="close"]').first().click();await page.locator('.menu-btn').click();await page.locator('[data-action="tab"][data-id="chat"]').click();await page.locator('main.fullscreen').waitFor(); // navigation remains usable during generation
  release();await page.reload();await page.locator('.menu-btn').waitFor();await appearance();await page.locator('.generation-preview img').waitFor();await page.locator('.generation-preview img').evaluate(img=>img.decode());assert.equal(mediaStatus(db,auth.user.id).portraitEmotions.happy,undefined);
  for(const width of [320,390,1440]){await page.setViewportSize({width,height:844});assert(!await page.locator('dialog').evaluate(el=>el.scrollWidth>el.clientWidth));}
- await page.getByRole('button',{name:'保存为开心立绘',exact:true}).click();await page.locator('[data-action="delete-emotion"][data-id="happy"]').waitFor();assert(mediaStatus(db,auth.user.id).portraitEmotions.happy);assert.deepEqual(errors,[]);console.log('PASS: consent, background task, restored transparent preview, explicit save, responsive modal.');
+ assert.equal(await page.locator('.generation-loading').count(),0);
+ await page.getByRole('button',{name:'保存为开心立绘',exact:true}).click();await page.locator('[data-action="delete-emotion"][data-id="happy"]').waitFor();assert(mediaStatus(db,auth.user.id).portraitEmotions.happy);assert.deepEqual(errors,[]);console.log('PASS: generation animation, reduced motion, consent, background task, restored preview, explicit save, responsive modal.');
 }finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));db.close()}

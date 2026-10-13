@@ -24,6 +24,7 @@ let media={avatar:false,background:false,avatarVersion:0,backgroundVersion:0};
 let backgroundUrl='';
 let generation={available:false,job:null};
 let generationBusy=false,generationConsent=false;
+let generationStarting='';
 const ai={ready:false,error:''};
 const accessiblePeople=()=>C.PEOPLE.filter(p=>C.LEGACY_IDS.includes(p.id)||dailyDraw?.collection.some(c=>c.kind==='virtual'&&c.id===p.id)||C.hasContact(s,p.id));
 const date=t=>new Date(t).toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
@@ -325,12 +326,13 @@ async function action(action,id){
  if(action==='menu'){ui.menu=!ui.menu;render();return}
  ui.menu=false;
  if(['generate-portrait','apply-portrait','discard-portrait'].includes(action)){
-  if(generationBusy)return;generationBusy=true;renderModal();
+  if(generationBusy)return;generationBusy=true;generationStarting=action==='generate-portrait'?id:'';renderModal();
+  if(generationStarting)dialog.querySelector('.generation-loading')?.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
   try{
    const result=action==='generate-portrait'?await post('/api/portraits/generate',{emotion:id,consent:generationConsent,requestId:crypto.randomUUID()}):await post(action==='apply-portrait'?'/api/portraits/apply':'/api/portraits/discard',{jobId:id});
    generation=result;if(result.media)media=result.media;
    if(action==='apply-portrait')toast('情绪立绘已保存。');
-  }finally{generationBusy=false;render()}
+  }finally{generationBusy=false;generationStarting='';render()}
   return;
  }
  if(action==='close'){closeModal();return}
@@ -447,9 +449,9 @@ function emotionUploads(){
  return `<section class="emotion-portraits" aria-label="情绪立绘"><h3>不同心情，不同的你</h3><p class="smallprint">上传默认立绘后，可用 Sunburst 生成同一人物的情绪立绘，保留原图风格与全身或半身构图。建议手动上传的立绘也使用透明背景。保存前请检查人物一致性。透明背景会自动检查；AI 可能需要几分钟。每 24 小时最多 12 次。</p><label class="generation-consent"><input id="generation-consent" type="checkbox" ${generationConsent?'checked':''}>我同意将默认立绘发送给 AI 服务，生成会消耗服务额度。</label>${!generation.available?'<p class="smallprint">生图服务暂未配置。</p>':!media.portrait?'<p class="smallprint">请先上传默认立绘。</p>':''}${generationPanel()}<div class="emotion-portrait-grid">${PORTRAIT_EMOTIONS.map(([id,label])=>{const version=media.portraitEmotions?.[id];return `<article class="emotion-portrait-card"><h4>${label}</h4><div class="emotion-portrait-preview">${version?`<img src="/api/media/portrait/${e(account.id)}?emotion=${id}&v=${version}" alt="我的${label}立绘">`:'<span>未上传 · 使用默认立绘</span>'}</div>${btn('AI 生成'+label,'generate-portrait',id,'secondary',!generation.available||!media.portrait||!generationConsent||pending||generationBusy)}<label class="field"><span>${version?'替换':'上传'}${label}立绘</span><input type="file" data-media="portrait" data-emotion="${id}" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${version?btn('移除这张立绘','delete-emotion',id,'link-btn',!!ui.busy):''}</article>`}).join('')}</div></section>`;
 }
 function generationPanel(){
- const job=generation.job;if(!job)return '';
+ const job=generationStarting?{emotion:generationStarting,status:'running'}:generation.job;if(!job)return '';
  const label=PORTRAIT_EMOTIONS.find(([id])=>id===job.emotion)?.[1]||'';
- if(job.status==='running')return `<p class="generation-status" role="status">正在生成${e(label)}立绘…可以关闭设置继续聊天，稍后回来查看。</p>`;
+ if(job.status==='running')return `<section class="generation-status generation-loading" role="status" aria-live="polite" aria-busy="true"><div class="generation-art" aria-hidden="true"><span class="generation-orbit"></span><img src="/api/media/portrait/${e(account.id)}?v=${media.portraitVersion}" alt=""><span class="generation-spark spark-one">✦</span><span class="generation-spark spark-two">✧</span><span class="generation-spark spark-three">✦</span></div><div class="generation-loading-copy"><h4>正在生成${e(label)}立绘<span class="generation-dots" aria-hidden="true"><i></i><i></i><i></i></span></h4><p>拾言正在描绘你的另一种心情</p><small>可能需要几分钟。可以关闭设置继续聊天，稍后回来查看。</small></div></section>`;
  if(job.status==='failed')return `<p class="generation-status" role="status">${e(job.error)}</p>`;
  if(job.status!=='ready')return '';
  return `<section class="generation-result"><h4>${e(label)}立绘预览</h4><div class="generation-preview"><img src="/api/portraits/generation/${e(job.id)}/image" alt="AI 生成的${e(label)}立绘"></div><p class="smallprint">棋盘格用于展示透明区域。确认人物、服装与原图风格后保存；预览保留 7 天。</p>${btn('保存为'+label+'立绘','apply-portrait',job.id,'primary',generationBusy)}${btn('放弃这张','discard-portrait',job.id,'secondary',generationBusy)}</section>`;

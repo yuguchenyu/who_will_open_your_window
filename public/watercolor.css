@@ -113,3 +113,17 @@ body{background:radial-gradient(ellipse at 0 12%,#e8efdf80,transparent 45%),radi
 .emotion-portrait-card button{white-space:normal;max-width:100%}
 .profile-media-preview:has(img[alt="我的默认立绘"]){height:200px;background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 0/20px 20px}
 .profile-media-preview img[alt="我的默认立绘"]{object-fit:contain}
+.generation-loading{display:flex;align-items:center;gap:22px;overflow:hidden;background:linear-gradient(125deg,#fffaf1,#edf2e8);min-height:170px}
+.generation-art{position:relative;width:118px;height:138px;flex:none;display:grid;place-items:center}
+.generation-art img{height:112px;width:80px;object-fit:contain;position:relative;z-index:1;animation:portrait-breathe 3s ease-in-out infinite}
+.generation-orbit{position:absolute;width:112px;height:112px;border:1px dashed #92a48b;border-radius:50%;animation:portrait-orbit 14s linear infinite}
+.generation-orbit::after{content:'';position:absolute;top:8px;right:16px;width:9px;height:9px;background:#b68c63;border-radius:50%;box-shadow:0 0 13px #c8ac84}
+.generation-spark{position:absolute;color:#ae865e;font-size:20px;z-index:2;animation:portrait-spark 2.4s ease-in-out infinite}
+.spark-one{left:3px;top:20px}.spark-two{right:0;top:48px;animation-delay:.8s}.spark-three{left:18px;bottom:5px;animation-delay:1.6s;font-size:15px}
+.generation-loading-copy{min-width:0}.generation-loading-copy h4{font-size:16px;margin:0 0 9px;line-height:1.7}.generation-loading-copy p{font-size:13px;color:#637a61;margin:0 0 10px}.generation-loading-copy small{font-size:11px;line-height:1.7;color:#7b8072}
+.generation-dots{display:inline-flex;gap:4px;margin-left:7px;vertical-align:middle}.generation-dots i{width:4px;height:4px;border-radius:50%;background:#8b9e7a;animation:portrait-dot 1.4s ease-in-out infinite}.generation-dots i:nth-child(2){animation-delay:.2s}.generation-dots i:nth-child(3){animation-delay:.4s}
+@keyframes portrait-orbit{to{transform:rotate(360deg)}}
+@keyframes portrait-breathe{50%{transform:translateY(-4px);opacity:.75}}
+@keyframes portrait-spark{50%{opacity:.25;transform:scale(.7)}}
+@keyframes portrait-dot{50%{transform:translateY(-3px);opacity:.3}}
+@media(max-width:480px){.generation-loading{gap:12px;padding:12px;flex-direction:column;text-align:center}.generation-art{height:125px}.generation-loading-copy h4{font-size:15px}}
