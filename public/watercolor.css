@@ -127,3 +127,8 @@ body{background:radial-gradient(ellipse at 0 12%,#e8efdf80,transparent 45%),radi
 @keyframes portrait-spark{50%{opacity:.25;transform:scale(.7)}}
 @keyframes portrait-dot{50%{transform:translateY(-3px);opacity:.3}}
 @media(max-width:480px){.generation-loading{gap:12px;padding:12px;flex-direction:column;text-align:center}.generation-art{height:125px}.generation-loading-copy h4{font-size:15px}}
+.vn-reply-toolbar{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 2px;color:#e0e7d6;font-size:11px}
+.vn-reply-toolbar label{display:flex;align-items:center;gap:9px;min-width:0}
+.vn-reply-toolbar select{color:#f1f4e8;background:#26382e;border:1px solid #ffffff45;border-radius:7px;padding:5px 10px;max-width:150px;font-size:12px}
+.vn-reply-toolbar .vn-inline{white-space:nowrap;color:#d6e5c9}
+@media(max-width:480px){.vn-reply-toolbar{gap:8px}.vn-reply-toolbar select{padding:5px 7px;max-width:130px}}

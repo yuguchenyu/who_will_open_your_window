@@ -1,3 +1,4 @@
+import {REPLY_STYLES} from './reply-styles.mjs';
 import {PORTRAIT_EMOTIONS,portraitSelection} from './portraits.mjs';
 import * as C from './core.mjs';
 import {post,get,beforeLeaving} from './api.mjs';
@@ -27,6 +28,7 @@ let generationBusy=false,generationConsent=false;
 let generationStarting='';
 const guidanceErrorMessage={};
 const portraitMood={};
+let replyStyle='natural';
 function generationRequestId(){
  if(typeof globalThis.crypto?.randomUUID==='function')return globalThis.crypto.randomUUID();
  // getRandomValues also works on plain HTTP, including LAN/Tailscale addresses.
@@ -133,7 +135,7 @@ function realChat(){
  const conversation=real.conversations.find(c=>c.id===ui.realChatId);
  if(!conversation)return '';
  const id=conversation.id,p=conversation.person,messages=conversation.messages,latest=messages.at(-1),incoming=[...messages].reverse().find(m=>m.role==='assistant');
- const data=ui.guidance[id]?.messageId===incoming?.id?ui.guidance[id]:null,choices=data?.suggestions||[];
+ const data=ui.guidance[id]?.messageId===incoming?.id&&ui.guidance[id]?.replyStyle===replyStyle?ui.guidance[id]:null,choices=data?.suggestions||[];
  const key='chat:'+id,sceneImage=sceneLayer();
  const portrait=portraitSelection(p,portraitMood[id]?.messageId===incoming?.id?portraitMood[id].emotion:null);
  const fav=ui.favorability[id];
@@ -143,7 +145,7 @@ function realChat(){
  return `<section class="vn-stage real ${sceneImage?'custom-background':''}" aria-label="与${e(p.name)}的真人对话场景">${sceneImage}
   ${ui.scenePicker?sceneStrip():''}
   ${portrait.version?`<img class="vn-character-photo" data-emotion="${portrait.emotion}" src="/api/media/portrait/${encodeURIComponent(p.id)}?emotion=${portrait.emotion}&v=${portrait.version}" alt="${e(p.name)}的${e(PORTRAIT_EMOTIONS.find(([id])=>id===portrait.emotion)?.[1]||'默认')}立绘">`:'<div class="vn-character" aria-label="对方未设置形象，显示问号人"><div class="vn-hair"></div><div class="vn-face">?</div><div class="vn-body"></div></div>'}
-  <div class="vn-choices" aria-label="回复选项">${[0,1,2].map(i=>choices[i]?btn(`<b>0${i+1}</b><span>${e(choices[i].text)}</span>`,'choose-guidance',id+'|'+i,'vn-choice '+(ui.replyChoice[id]===i?'selected':'')):btn(`<b>0${i+1}</b><span>${ui.guidanceBusy[id]?'正在生成 AI 选项…':'点击生成 AI 选项'}</span>`,'guidance',id,'vn-choice',!ai.ready||!!ui.busy||!!ui.guidanceBusy[id])).join('')}${ui.composing[id]?`<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key]||'')}</textarea>${btn('发送','send-custom-chat',id,'btn small send-chat-btn',!!ui.busy)}</div>`:btn('<b>04</b><span>自己输入想说的话</span>','custom-reply',id,'vn-choice custom '+(ui.replyChoice[id]==='custom'?'selected':''))}</div>
+  <div class="vn-choices" aria-label="回复选项">${replyStyleControl(id)}${[0,1,2].map(i=>choices[i]?btn(`<b>0${i+1}</b><span>${e(choices[i].text)}</span>`,'choose-guidance',id+'|'+i,'vn-choice '+(ui.replyChoice[id]===i?'selected':'')):btn(`<b>0${i+1}</b><span>${ui.guidanceBusy[id]?'正在生成 AI 选项…':'点击生成 AI 选项'}</span>`,'guidance',id,'vn-choice',!ai.ready||!!ui.busy||!!ui.guidanceBusy[id])).join('')}${ui.composing[id]?`<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key]||'')}</textarea>${btn('发送','send-custom-chat',id,'btn small send-chat-btn',!!ui.busy)}</div>`:btn('<b>04</b><span>自己输入想说的话</span>','custom-reply',id,'vn-choice custom '+(ui.replyChoice[id]==='custom'?'selected':''))}</div>
   <div class="vn-dialogue"><div class="vn-dialogue-top"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div>${favBtnHtml}</div><p class="vn-dialogue-text">${e(latest?.content||'从一句问候开始。')}</p>${latest?.role==='assistant'?guidanceInline(id,data):''}<div class="vn-foot-row">${favBtnHtml}${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
  </section>${ui.showHistory?`<section class="vn-history" aria-label="聊天记录"><h3>回看记录</h3><div class="messages" id="messages">${messages.map(m=>`<div class="bubble-row ${m.role==='user'?'user':''}">${m.role==='assistant'?matchAvatar(p):''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join('')}</div></section>`:''}`;
 }
@@ -153,14 +155,14 @@ function demoChat(){
  if(!contacts.some(p=>p.id===ui.person))ui.person=contacts[0].id;
  const p=C.person(ui.person),key='chat:'+p.id,messages=s.messages[p.id];
  const latest=messages.at(-1),incoming=[...messages].reverse().find(m=>m.role==='assistant');
- const data=ui.guidance[p.id]?.messageId===incoming?.id?ui.guidance[p.id]:null;
+ const data=ui.guidance[p.id]?.messageId===incoming?.id&&ui.guidance[p.id]?.replyStyle===replyStyle?ui.guidance[p.id]:null;
  const waiting=!!s.pending[p.id],blocked=C.isBlocked(s,p.id);
  const sceneImage=sceneLayer();
  const choices=data?.suggestions||[];
  return `<section class="vn-stage ${p.color} ${sceneImage?'custom-background':''}" aria-label="与${e(p.name)}的对话场景">${sceneImage}
   ${ui.scenePicker?sceneStrip():''}
   ${p.sprite?`<img class="vn-character-photo" src="${e(p.sprite)}" alt="${e(p.name)}的立绘">`:'<div class="vn-character" aria-label="对方未设置形象，显示问号人"><div class="vn-hair"></div><div class="vn-face">?</div><div class="vn-body"></div></div>'}
-  ${!waiting&&!blocked?`<div class="vn-choices" aria-label="回复选项">${[0,1,2].map(i=>choices[i]?btn(`<b>0${i+1}</b><span>${e(choices[i].text)}</span>`,'choose-guidance',p.id+'|'+i,'vn-choice '+(ui.replyChoice[p.id]===i?'selected':'')):btn(`<b>0${i+1}</b><span>${ui.guidanceBusy[p.id]?'正在生成 AI 选项…':'点击重新生成 AI 选项'}</span>`,'guidance',p.id,'vn-choice',!ai.ready||!!ui.busy||!!ui.guidanceBusy[p.id])).join('')}${ui.composing[p.id]?`<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key]||'')}</textarea>${btn('发送','send-custom-chat',p.id,'btn small send-chat-btn',!!ui.busy)}</div>`:btn('<b>04</b><span>自己输入想说的话</span>','custom-reply',p.id,'vn-choice custom '+(ui.replyChoice[p.id]==='custom'?'selected':''))}</div>`:''}
+  ${!waiting&&!blocked?`<div class="vn-choices" aria-label="回复选项">${replyStyleControl(p.id)}${[0,1,2].map(i=>choices[i]?btn(`<b>0${i+1}</b><span>${e(choices[i].text)}</span>`,'choose-guidance',p.id+'|'+i,'vn-choice '+(ui.replyChoice[p.id]===i?'selected':'')):btn(`<b>0${i+1}</b><span>${ui.guidanceBusy[p.id]?'正在生成 AI 选项…':'点击重新生成 AI 选项'}</span>`,'guidance',p.id,'vn-choice',!ai.ready||!!ui.busy||!!ui.guidanceBusy[p.id])).join('')}${ui.composing[p.id]?`<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key]||'')}</textarea>${btn('发送','send-custom-chat',p.id,'btn small send-chat-btn',!!ui.busy)}</div>`:btn('<b>04</b><span>自己输入想说的话</span>','custom-reply',p.id,'vn-choice custom '+(ui.replyChoice[p.id]==='custom'?'selected':''))}</div>`:''}
   <div class="vn-dialogue"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div><p class="vn-dialogue-text">${e(latest?.content||'对话从这里开始。')}</p>${waiting?`<div class="vn-wait">${ui.busy===p.id?'对方正在回应…':'回复尚未完成。'} ${btn('重试回复','retry',p.id,'vn-inline',!ai.ready||!!ui.busy)}</div>`:guidanceInline(p.id,data)}${blocked?'<p class="vn-footnote">你已屏蔽此人物，无法继续聊天。</p>':''}<div class="vn-foot-row">${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',p.id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
  </section>
  ${ui.showHistory?`<section class="vn-history" aria-label="聊天记录"><h3>回看记录</h3><div class="messages" id="messages">${messages.map(m=>`<div class="bubble-row ${m.role==='user'?'user':''}">${m.role==='assistant'?avatar(p,true):''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join('')}</div></section>`:''}`;
@@ -261,7 +263,7 @@ function renderModal(){if(!ui.modal)return;const {type,id}=ui.modal;let title=''
 async function boot(){
  try{
   const data=await get('/api/me');
-  account=data.user;applyState(data.state);matchingProfile=data.matchingProfile;media=data.media||media;ai.ready=!!data.aiAvailable;ai.error='';restoreDrafts();
+  account=data.user;applyState(data.state);matchingProfile=data.matchingProfile;media=data.media||media;ai.ready=!!data.aiAvailable;ai.error='';restoreDrafts();try{const stored=localStorage.getItem('heart-window-reply-style:'+account.id);if(REPLY_STYLES.some(v=>v.id===stored))replyStyle=stored}catch{}
   await loadBackground().catch(()=>{});
   await refreshGeneration().catch(()=>{});
   try{await refreshDraw()}catch(err){ui.drawError=err.message}
@@ -296,18 +298,19 @@ async function generateGuidance(id){
  const realConversation=real.conversations.find(c=>c.id===id),messages=realConversation?.messages||s.messages[id];
  if(!ai.ready||ui.guidanceBusy[id]||(!realConversation&&C.isBlocked(s,id)))return;
  const latest=[...(messages||[])].reverse().find(m=>m.role==='assistant');if(!latest)return;
+ const requestedStyle=replyStyle;
  ui.guidanceBusy[id]=true;delete ui.guidanceError[id];delete portraitMood[id];renderKeepingDraftFocus();
- try{const data=await post('/api/guidance',realConversation?{conversationId:id,messageId:latest.id}:{personId:id,messageId:latest.id});
+ try{const data=await post('/api/guidance',realConversation?{conversationId:id,messageId:latest.id,replyStyle:requestedStyle}:{personId:id,messageId:latest.id,replyStyle:requestedStyle});
   const current=realConversation?real.conversations.find(c=>c.id===id)?.messages:s.messages[id];
-  if([...current||[]].reverse().find(m=>m.role==='assistant')?.id===data.messageId){ui.guidance[id]=data;portraitMood[id]={messageId:data.messageId,emotion:data.emotion}}
+  if([...current||[]].reverse().find(m=>m.role==='assistant')?.id===data.messageId){if(data.replyStyle===replyStyle)ui.guidance[id]=data;portraitMood[id]={messageId:data.messageId,emotion:data.emotion}}
  }catch(err){ui.guidanceError[id]=err.message;guidanceErrorMessage[id]=latest.id}finally{
   delete ui.guidanceBusy[id];renderKeepingDraftFocus();
   const current=realConversation?real.conversations.find(c=>c.id===id)?.messages:s.messages[id];
   const newest=[...current||[]].reverse().find(m=>m.role==='assistant');
-  if(newest&&newest.id!==latest.id&&ui.tab==='chat'&&(realConversation?ui.realChatId===id:!ui.realChatId&&ui.person===id))generateGuidance(id);
+  if(newest&&(newest.id!==latest.id||requestedStyle!==replyStyle)&&ui.tab==='chat'&&(realConversation?ui.realChatId===id:!ui.realChatId&&ui.person===id))generateGuidance(id);
  }
 }
-async function generateSuggestions(key){requireAI();if(ui.busy)throw new Error('请等待当前请求完成。');const [kind,id]=key.split(':');const n=kind==='reply'?s.notes.find(n=>n.id===id):null;const pid=n?.personId||id;if(C.isBlocked(s,pid))throw new Error('你已屏蔽这个人物。');const body=contextFor(pid);body.intent=ui.intents[key]||'自然回应';body.draft=ui.drafts[key]||'';if(kind==='note'){body.context='根据对方主页的话题，写第一张纸条。只有草稿中主动提供的偏好才可当作事实。';body.messages=[]}if(n){body.context='为收到的纸条写一句回应。';body.messages=[{role:'assistant',content:n.text}]}
+async function generateSuggestions(key){requireAI();if(ui.busy)throw new Error('请等待当前请求完成。');const [kind,id]=key.split(':');const n=kind==='reply'?s.notes.find(n=>n.id===id):null;const pid=n?.personId||id;if(C.isBlocked(s,pid))throw new Error('你已屏蔽这个人物。');const body=contextFor(pid);body.replyStyle=replyStyle;body.intent=ui.intents[key]||'自然回应';body.draft=ui.drafts[key]||'';if(kind==='note'){body.context='根据对方主页的话题，写第一张纸条。只有草稿中主动提供的偏好才可当作事实。';body.messages=[]}if(n){body.context='为收到的纸条写一句回应。';body.messages=[{role:'assistant',content:n.text}]}
  ui.busy='suggest:'+key;ui.error='';render();try{const data=await post('/api/suggestions',body);ui.suggestions[key]=data.suggestions}catch(err){ui.error=err.message;toast(err.message)}finally{ui.busy='';render()}}
 // 两条发送路径共用：demo 走服务端动作+AI 回合，真人直接投递。发送后清掉草稿与编辑态。
 async function sendChat(id,text){
@@ -405,7 +408,7 @@ async function action(action,id){
  }
  if(action==='suggest'){await generateSuggestions(id);return}
  if(action==='guidance'){await generateGuidance(id);return}
- if(action==='choose-guidance'){const split=id.lastIndexOf('|'),pid=id.slice(0,split),index=Number(id.slice(split+1)),messages=real.conversations.find(c=>c.id===pid)?.messages||s.messages[pid]||[];const latest=[...messages].reverse().find(m=>m.role==='assistant');const data=ui.guidance[pid];if(!data||data.messageId!==latest?.id||!data.suggestions[index])return;const text=data.suggestions[index].text;delete ui.guidance[pid];delete ui.composing[pid];
+ if(action==='choose-guidance'){const split=id.lastIndexOf('|'),pid=id.slice(0,split),index=Number(id.slice(split+1)),messages=real.conversations.find(c=>c.id===pid)?.messages||s.messages[pid]||[];const latest=[...messages].reverse().find(m=>m.role==='assistant');const data=ui.guidance[pid];if(!data||data.messageId!==latest?.id||data.replyStyle!==replyStyle||!data.suggestions[index])return;const text=data.suggestions[index].text;delete ui.guidance[pid];delete ui.composing[pid];
   if(real.conversations.some(c=>c.id===pid))await sendRealChat(pid,text);else await sendChat(pid,text);
   return}
  if(action==='send-custom-chat'){const input=document.getElementById('draft-chat:'+id);const text=(input?.value||ui.drafts['chat:'+id]||'').trim();if(!text)return;if(real.conversations.some(c=>c.id===id))await sendRealChat(id,text);else await sendChat(id,text);return}
@@ -504,3 +507,15 @@ app.addEventListener('error', event => {
   image.after(placeholder);
  }else if(image.closest('.avatar.portrait')){image.replaceWith(document.createTextNode('◌'));}
 },true);
+
+function replyStyleControl(id){
+ return `<div class="vn-reply-toolbar"><label>选项风格 <select id="reply-style" data-reply-style="${e(id)}" aria-label="回复选项风格">${REPLY_STYLES.map(style=>`<option value="${style.id}" ${replyStyle===style.id?'selected':''}>${style.label}</option>`).join('')}</select></label>${btn(ui.guidanceBusy[id]?'正在想怎么接话…':'换一组','guidance',id,'vn-inline',!ai.ready||!!ui.guidanceBusy[id])}</div>`;
+}
+document.addEventListener('change',event=>{
+ const id=event.target.dataset.replyStyle,value=event.target.value;
+ if(!id||!REPLY_STYLES.some(s=>s.id===value)||value===replyStyle)return;
+ replyStyle=value;try{localStorage.setItem('heart-window-reply-style:'+account.id,value)}catch{}
+ for(const key of Object.keys(ui.guidance))delete ui.guidance[key];
+ for(const key of Object.keys(guidanceErrorMessage))delete guidanceErrorMessage[key];
+ renderKeepingDraftFocus();generateGuidance(id).catch(err=>toast(err.message));
+});
