@@ -11,9 +11,12 @@ let release,calls=0;const server=createServer({configured:false,imageConfigured:
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
 try{
- const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});await context.addCookies([{name:COOKIE_NAME,value:auth.token,url:base}]);const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});await context.addCookies([{name:COOKIE_NAME,value:auth.token,url:base}]);
+ await context.addInitScript(()=>{Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined,configurable:true})});
+ const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  async function appearance(){await page.locator('.menu-btn').click();await page.locator('[data-action="tab"][data-id="me"]').click();await page.locator('[data-action="appearance"]').first().click()}
  await page.goto(base);if(await page.locator('.entry-skip').count())await page.locator('.entry-skip').click();await page.locator('.daily-encounter').waitFor();await appearance();
+ assert.equal(await page.evaluate(()=>typeof crypto.randomUUID),'undefined');
  const generate=page.locator('[data-action="generate-portrait"][data-id="happy"]');assert(await generate.isDisabled());await page.locator('#generation-consent').check();await generate.click();await page.getByText('正在生成开心立绘',{exact:false}).waitFor();assert.equal(calls,1);
  assert.equal(await page.locator('.generation-loading').getAttribute('aria-busy'),'true');
  assert.equal(await page.locator('.generation-orbit').evaluate(el=>getComputedStyle(el).animationName),'none');

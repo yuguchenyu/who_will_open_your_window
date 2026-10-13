@@ -27,6 +27,14 @@ let generationBusy=false,generationConsent=false;
 let generationStarting='';
 const guidanceErrorMessage={};
 const portraitMood={};
+function generationRequestId(){
+ if(typeof globalThis.crypto?.randomUUID==='function')return globalThis.crypto.randomUUID();
+ // getRandomValues also works on plain HTTP, including LAN/Tailscale addresses.
+ const bytes=globalThis.crypto.getRandomValues(new Uint8Array(16));
+ bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+ const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+ return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
 const ai={ready:false,error:''};
 const accessiblePeople=()=>C.PEOPLE.filter(p=>C.LEGACY_IDS.includes(p.id)||dailyDraw?.collection.some(c=>c.kind==='virtual'&&c.id===p.id)||C.hasContact(s,p.id));
 const date=t=>new Date(t).toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
@@ -335,7 +343,7 @@ async function action(action,id){
   if(generationBusy)return;generationBusy=true;generationStarting=action==='generate-portrait'?id:'';renderModal();
   if(generationStarting)dialog.querySelector('.generation-loading')?.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
   try{
-   const result=action==='generate-portrait'?await post('/api/portraits/generate',{emotion:id,consent:generationConsent,requestId:crypto.randomUUID()}):await post(action==='apply-portrait'?'/api/portraits/apply':'/api/portraits/discard',{jobId:id});
+   const result=action==='generate-portrait'?await post('/api/portraits/generate',{emotion:id,consent:generationConsent,requestId:generationRequestId()}):await post(action==='apply-portrait'?'/api/portraits/apply':'/api/portraits/discard',{jobId:id});
    generation=result;if(result.media)media=result.media;
    if(action==='apply-portrait')toast('情绪立绘已保存。');
   }finally{generationBusy=false;generationStarting='';render()}
