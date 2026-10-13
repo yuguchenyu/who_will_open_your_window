@@ -15,6 +15,7 @@ import {drawState,draw,decide,remove,collection,isCollected} from './lib/draw.mj
 import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags} from './lib/matching.mjs';
 import {saveMedia,deleteMedia,mediaStatus,getMedia} from './lib/media.mjs';
 import {createPortraitGeneration} from './lib/portrait-generation.mjs';
+import {PORTRAIT_EMOTIONS} from './public/portraits.mjs';
 import {realSnapshot,sendRealNote,respondRealNote,sendRealMessage,conversation,canViewAvatar} from './lib/real-chat.mjs';
 import {getConversationFavorability, makeFavorabilityMessages, parseFavorabilityLlm, calculateReplySpeed, calculateContinuity, calculateWordRatio, composeFavorabilityScore} from './lib/favorability.mjs';
 
@@ -109,14 +110,17 @@ export function guidanceMessages(person,history,{real=false}={}){
    content
   }))
  };
- return [{role:'system',content:safety+format},{role:'user',content:JSON.stringify(userPayload)}];
+ const emotionFormat='同一 JSON 对象必须附加 emotion 字段，格式为 {"label":"uncertain","confidence":0}。判断对象严格为聊天对方最新一句话的情绪，结合前文理解否定、讽刺和转述，不能将当前用户的情绪或句子提到的其他人的情绪归给对方。label 只能是 happy（开心）、sad（难过）、angry（生气）、shy（害羞）、surprised（惊讶）、thinking（思考）、neutral（平静）、uncertain（难以判断）。confidence 为 0–100 的整数，仅是模型自评参考值，不是统计概率；信息不足或多个情绪难以区分时选择 uncertain，不要硬猜。此字段只用于选择聊天立绘，不用于好感度或任何心理诊断。';
+ return [{role:'system',content:safety+format+emotionFormat},{role:'user',content:JSON.stringify(userPayload)}];
 }
 export function parseGuidance(raw){
  let obj;try{obj=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''))}catch{throw new ApiError('对话理解格式不正确，请重试。',502,'FORMAT')}
  const items=obj?.interpretations;
  if(!Array.isArray(items)||items.length!==3||items.some(v=>typeof v?.intent!=='string'||!v.intent.trim()||Array.from(v.intent).length>50||typeof v.reason!=='string'||!v.reason.trim()||Array.from(v.reason).length>100||!Number.isInteger(v.confidence)||v.confidence<0||v.confidence>100)||items.reduce((sum,v)=>sum+v.confidence,0)!==100)throw new ApiError('模型未提供有效的多种解释，请重试。',502,'FORMAT');
  const suggestions=parseSuggestions(JSON.stringify({suggestions:obj.suggestions}));
- return {interpretations:items.map(v=>({intent:v.intent.trim(),confidence:v.confidence,reason:v.reason.trim()})),suggestions};
+ const mood=obj?.emotion;
+ const emotion=mood&&[...PORTRAIT_EMOTIONS.map(([id])=>id),'neutral','uncertain'].includes(mood.label)&&Number.isInteger(mood.confidence)&&mood.confidence>=0&&mood.confidence<=100?{label:mood.label,confidence:mood.confidence}:{label:'uncertain',confidence:0};
+ return {interpretations:items.map(v=>({intent:v.intent.trim(),confidence:v.confidence,reason:v.reason.trim()})),suggestions,emotion};
 }
 export function createServer(config,{fetchImpl=fetch,timeout=35000,imageTimeout=180000,db}={}){
  const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));

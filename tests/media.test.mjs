@@ -56,11 +56,11 @@ test('media belongs to the account and can be replaced or removed',async t=>{
  assert(me.media.backgroundVersion>0);
 });
 
-test('portrait expressions follow recent wording and safely fall back to default',()=>{
- for(const [text,emotion] of [['今天好开心😊','happy'],['我有点难过','sad'],['我真的生气了😡','angry'],['突然有点害羞','shy'],['哇！没想到','surprised'],['让我想想🤔','thinking'],['你好，周末去散步吗','default'],['我没有生气','default'],['我并不难过','default'],['今天不开心','sad']])assert.equal(portraitEmotion(text),emotion);
+test('AI portrait selection requires confident known emotion and falls back safely',()=>{
  const p={portraitVersion:10,portraitEmotions:{happy:20,sad:30}};
- assert.deepEqual(portraitSelection(p,'哈哈好开心'),{emotion:'happy',version:20});
- assert.deepEqual(portraitSelection(p,'有点害羞'),{emotion:'default',version:10});
- assert.deepEqual(portraitSelection({portraitEmotions:{happy:20}},'你好'),{emotion:'default',version:0});
- assert.deepEqual(portraitSelection({portraitEmotions:{happy:20}},'好开心'),{emotion:'happy',version:20});
+ assert.deepEqual(portraitSelection(p,{label:'happy',confidence:90}),{emotion:'happy',version:20});
+ for(const analysis of [undefined,{label:'happy',confidence:69},{label:'neutral',confidence:99},{label:'uncertain',confidence:90},{label:'invalid',confidence:90},{label:'sad',confidence:101},'哈哈好开心'])assert.deepEqual(portraitSelection(p,analysis),{emotion:'default',version:10});
+ assert.deepEqual(portraitSelection(p,{label:'shy',confidence:90}),{emotion:'default',version:10});
+ assert.deepEqual(portraitSelection({portraitEmotions:{happy:20}},{label:'neutral',confidence:90}),{emotion:'default',version:0});
+ assert.equal(portraitEmotion({label:'sad',confidence:70}),'sad');
 });

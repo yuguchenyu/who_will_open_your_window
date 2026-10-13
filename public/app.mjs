@@ -25,6 +25,8 @@ let backgroundUrl='';
 let generation={available:false,job:null};
 let generationBusy=false,generationConsent=false;
 let generationStarting='';
+const guidanceErrorMessage={};
+const portraitMood={};
 const ai={ready:false,error:''};
 const accessiblePeople=()=>C.PEOPLE.filter(p=>C.LEGACY_IDS.includes(p.id)||dailyDraw?.collection.some(c=>c.kind==='virtual'&&c.id===p.id)||C.hasContact(s,p.id));
 const date=t=>new Date(t).toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
@@ -125,7 +127,7 @@ function realChat(){
  const id=conversation.id,p=conversation.person,messages=conversation.messages,latest=messages.at(-1),incoming=[...messages].reverse().find(m=>m.role==='assistant');
  const data=ui.guidance[id]?.messageId===incoming?.id?ui.guidance[id]:null,choices=data?.suggestions||[];
  const key='chat:'+id,sceneImage=sceneLayer();
- const portrait=portraitSelection(p,incoming?.content);
+ const portrait=portraitSelection(p,portraitMood[id]?.messageId===incoming?.id?portraitMood[id].emotion:null);
  const fav=ui.favorability[id];
  const favBtnHtml=fav&&fav.canView
   ?`<button type="button" class="vn-fav-badge" data-action="favorability" data-id="${id}" title="查看好感度分析"><span>${e(fav.badge||'💖')}</span> <b>好感度 ${fav.score}分</b> <small>· 连续${fav.factors?.continuity?.streakDays||0}天🔥</small></button>`
@@ -240,7 +242,7 @@ function renderModal(){if(!ui.modal)return;const {type,id}=ui.modal;let title=''
    body=`<div class="fav-score-card tier-${fav.tier==='怦然心动'?'gold':fav.tier==='相谈甚欢'?'purple':'blue'}"><div class="fav-score-header"><div><span class="fav-badge">${e(fav.badge)} ${e(fav.tier)}</span><h3>${e(fav.title)}</h3></div><div class="fav-big-number">${fav.score}<span> / 100</span></div></div><p class="fav-desc">${e(fav.desc)}</p></div><div class="fav-factors-grid"><div class="fav-factor-card"><div class="fav-factor-head"><span class="fav-factor-icon">⚡</span><div><b>回复速度</b><small>回得越快，好感度越高</small></div><span class="fav-factor-score">${f.reply.score}分</span></div><p class="fav-factor-detail">${f.reply.avgMinutes!==null?`平均回复 <b>${f.reply.avgMinutes}</b> 分钟 · 中位数 <b>${f.reply.medianMinutes}</b> 分钟`:'暂无对方回信'}</p><span class="tag">${e(f.reply.desc)}</span></div><div class="fav-factor-card"><div class="fav-factor-head"><span class="fav-factor-icon">🔥</span><div><b>连续互动与时长</b><small>连续天数续火花 + 单次时长</small></div><span class="fav-factor-score">${f.continuity.score}分</span></div><p class="fav-factor-detail">连续畅聊 <b>${f.continuity.streakDays}</b> 天 · 最长单次持续 <b>${f.continuity.maxSessionMinutes}</b> 分钟</p><span class="tag">${e(f.continuity.desc)}</span></div><div class="fav-factor-card"><div class="fav-factor-head"><span class="fav-factor-icon">📝</span><div><b>字数倾斜比</b><small>输出明显更多方更具好感</small></div><span class="fav-factor-score">${f.wordRatio.score}分</span></div><p class="fav-factor-detail">对方 <b>${f.wordRatio.targetWords}</b> 字 vs 我方 <b>${f.wordRatio.myWords}</b> 字</p><div class="fav-ratio-bar"><div class="fav-ratio-fill" style="width:${f.wordRatio.ratio}%"></div></div><small class="fav-ratio-label">对方表达占比 ${f.wordRatio.ratio}%</small><span class="tag">${e(f.wordRatio.desc)}</span></div><div class="fav-factor-card fav-ai-card"><div class="fav-factor-head"><span class="fav-factor-icon">🤖</span><div><b>大模型内容与语义分析</b><small>深度理解分享欲与情感共鸣</small></div><span class="fav-factor-score">${f.llm?f.llm.score+'分':'规则模式'}</span></div>${f.llm?`<p class="fav-factor-detail"><b>情感态度：</b>${e(f.llm.attitude)}</p><p class="fav-ai-summary">${e(f.llm.summary)}</p><div class="tags">${f.llm.highlights.map(h=>`<span class="tag">${e(h)}</span>`).join('')}</div>`:`<p class="fav-ai-summary">尚未进行 AI 语义分析。点击下方按钮，调用大模型对近期真实对话进行语义与好感洞察。</p>`}<div class="fav-ai-action">${btn(f.llm?'重新运行大模型分析':'启动大模型好感分析','analyze-fav',id,'btn small secondary',!ai.ready||!!ui.busy)}</div></div></div><div class="fav-privacy-footer"><small>${icon('lock')} 隐私互通保护：仅双方均开启好感度系统时方可查看。</small>${btn('关闭我的好感度系统','toggle-fav-off',id,'link-btn',!!ui.busy)}</div>`;
   }
  }
- else if(type==='appearance'){title='场景与形象';body=`<p class="smallprint">对话页右上角的「场景」按钮可选用内置的二次元背景；这里上传的自定义背景会优先展示。背景只用于你自己的对话场景。头像用于纸条、资料等头像框；个人立绘只在真人聊天场景中展示。旧图片已保留为头像，请另行上传个人立绘。情绪立绘用于真人对话，按本人最近发言中的情绪词和表情自动切换，缺少对应立绘时使用默认立绘。</p><div class="profile-media"><div><div class="profile-media-preview">${media.background?`<img src="${e(backgroundUrl||'/api/media/background?v='+media.backgroundVersion)}" alt="当前场景背景">`:'默认场景背景'}</div><label class="field"><span>上传场景背景（PNG/JPEG/WebP，最多 3 MB）</span><input type="file" data-media="background" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${media.background?btn('恢复默认背景','delete-media','background','link-btn'):''}${ui.backgroundError?btn('重新加载背景','retry-background','','link-btn'):''}</div><div><div class="profile-media-preview avatar-preview">${media.avatar?`<img src="/api/media/avatar/${e(account.id)}?v=${media.avatarVersion}" alt="我的头像">`:'?'}</div><label class="field"><span>上传头像（PNG/JPEG/WebP，最多 2 MB）</span><input type="file" data-media="avatar" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${media.avatar?btn('移除头像','delete-media','avatar','link-btn'):''}</div><div><div class="profile-media-preview">${media.portrait?`<img src="/api/media/portrait/${e(account.id)}?v=${media.portraitVersion}" alt="我的默认立绘">`:'未设置个人立绘'}</div><label class="field"><span>上传个人默认立绘（PNG/JPEG/WebP，最多 2 MB）</span><input type="file" data-media="portrait" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label><p class="smallprint">建议上传透明背景图片，全身、半身都可以；未上传时聊天显示问号人。</p>${media.portrait?btn('移除默认立绘','delete-media','portrait','link-btn'):''}</div></div>${emotionUploads()}`}
+ else if(type==='appearance'){title='场景与形象';body=`<p class="smallprint">对话页右上角的「场景」按钮可选用内置的二次元背景；这里上传的自定义背景会优先展示。背景只用于你自己的对话场景。头像用于纸条、资料等头像框；个人立绘只在真人聊天场景中展示。旧图片已保留为头像，请另行上传个人立绘。情绪立绘用于真人对话，由 AI 根据对方最新消息和上下文判断情绪并切换；判断不明确、分析失败或缺少对应图片时使用默认立绘。</p><div class="profile-media"><div><div class="profile-media-preview">${media.background?`<img src="${e(backgroundUrl||'/api/media/background?v='+media.backgroundVersion)}" alt="当前场景背景">`:'默认场景背景'}</div><label class="field"><span>上传场景背景（PNG/JPEG/WebP，最多 3 MB）</span><input type="file" data-media="background" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${media.background?btn('恢复默认背景','delete-media','background','link-btn'):''}${ui.backgroundError?btn('重新加载背景','retry-background','','link-btn'):''}</div><div><div class="profile-media-preview avatar-preview">${media.avatar?`<img src="/api/media/avatar/${e(account.id)}?v=${media.avatarVersion}" alt="我的头像">`:'?'}</div><label class="field"><span>上传头像（PNG/JPEG/WebP，最多 2 MB）</span><input type="file" data-media="avatar" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label>${media.avatar?btn('移除头像','delete-media','avatar','link-btn'):''}</div><div><div class="profile-media-preview">${media.portrait?`<img src="/api/media/portrait/${e(account.id)}?v=${media.portraitVersion}" alt="我的默认立绘">`:'未设置个人立绘'}</div><label class="field"><span>上传个人默认立绘（PNG/JPEG/WebP，最多 2 MB）</span><input type="file" data-media="portrait" accept="image/png,image/jpeg,image/webp" ${ui.busy?'disabled':''}></label><p class="smallprint">建议上传透明背景图片，全身、半身都可以；未上传时聊天显示问号人。</p>${media.portrait?btn('移除默认立绘','delete-media','portrait','link-btn'):''}</div></div>${emotionUploads()}`}
  else if(type==='matching'){const p=ui.drafts.matching;title='我的匹配资料';body=`<p class="smallprint">自我介绍可能展示给匹配对象；两段介绍会发送给已配置的 AI 服务提取标签。修改后会重新提取。</p><label class="field"><span>介绍一下自己（10–500 字）</span><textarea id="match-self" class="editor" maxlength="500">${e(p.selfIntro)}</textarea></label><label class="field"><span>你希望遇见怎样的人（10–500 字）</span><textarea id="match-desired" class="editor" maxlength="500">${e(p.desiredIntro)}</textarea></label><label class="check-row"><input id="match-consent" type="checkbox"><span>我同意将自我介绍展示给匹配对象，并将两段介绍发送给已配置的 AI 服务提取标签。</span></label>${btn(ui.busy?'正在保存…':'保存并提取标签','save-matching','','btn',!!ui.busy)}`}
  else if(type==='demo'){title='Demo 控制面板';body=`<div class="notice">只改变本地演示状态，不代表真实用户意愿。</div><div class="demo-block"><h3>时间与周期</h3><p>当前 ${date(C.clockNow(s))} · 第 ${C.cycleOf(s)+1} 周期 · 已推进 ${s.offsetDays} 天</p><div class="row-actions">${btn('推进 1 天','advance','1','btn secondary small',!!ui.busy)}${btn('推进 7 天','advance','7','btn secondary small',!!ui.busy)}</div><p>按模拟日期计算额度；推进到新周期后，双方需要重新确认意愿。</p></div><div class="demo-block"><h3>虚拟人物状态</h3><label class="field"><span>选择人物</span><select id="demo-person">${accessiblePeople().map(p=>`<option value="${p.id}"${ui.selected===p.id?' selected':''}>${e(p.name)}</option>`).join('')}</select></label><label class="field"><span>当期意愿（仅供演示控制）</span><select id="demo-intent">${Object.entries(C.INTENTS).map(([v,t])=>`<option value="${v}"${s.scenarios[ui.selected].intent===v?' selected':''}>${t}</option>`).join('')}</select></label><label class="check-row"><input type="checkbox" id="demo-auth"${s.scenarios[ui.selected].authorized?' checked':''}><span>当期授权有效</span></label>${btn('保存为本周期状态','save-scenario','','btn secondary small',!!ui.busy)}<p>此设置不会展示在正常用户资料中，也不会发送给 AI。</p></div><div class="demo-block"><h3>体验收件人流程</h3><p>给所选人物注入一张明确标注的预设来信；实际回复由服务端 AI 生成。已有互动或被屏蔽的人物不能注入。</p>${btn('模拟收到纸条','inject','','btn secondary small',!!ui.busy)}</div><div class="row-actions">${btn('重置全部演示数据','reset-confirm','','link-btn danger',!!ui.busy)}</div><p class="smallprint">重置不会修改服务端 AI 配置，账号本身也会保留，只清除纸条、聊天、心笺、授权与模拟时间。</p>`}
  else if(type==='reset'){title='重置这个 Demo？';body='<p>这会清除当前账号的纸条、聊天、心笺、授权、额度和模拟时间，恢复初始虚拟人物。</p><p class="smallprint">账号本身会保留，用户名和密码都不变。也不影响 API 配置或其他文件。</p>'+btn('确认清除并重新开始','reset','','btn',!!ui.busy)}
@@ -260,7 +262,8 @@ async function boot(){
  }catch(err){ai.ready=false;ai.error=err.message||'服务暂不可用，请稍后重试。'}
  render();
  setInterval(()=>{if(account&&!document.hidden&&(generation.job?.status==='running'||ui.modal?.type==='appearance'))refreshGeneration().catch(()=>{})},2000);
- setInterval(()=>{if(account&&!document.hidden&&ui.tab==='meet'&&!ui.busy&&!ui.drawAnimating&&!dialog.open){const old=JSON.stringify(dailyDraw);refreshDraw().then(()=>{if(old!==JSON.stringify(dailyDraw))renderKeepingDraftFocus()}).catch(()=>{})}if(account&&!document.hidden&&['meet','notes','chat'].includes(ui.tab)&&!ui.busy)refreshReal().catch(()=>{})},6000);
+ setInterval(()=>{if(account&&!document.hidden&&ui.tab==='chat')refreshReal().catch(()=>{})},2000);
+ setInterval(()=>{if(account&&!document.hidden&&ui.tab==='meet'&&!ui.busy&&!ui.drawAnimating&&!dialog.open){const old=JSON.stringify(dailyDraw);refreshDraw().then(()=>{if(old!==JSON.stringify(dailyDraw))renderKeepingDraftFocus()}).catch(()=>{})}if(account&&!document.hidden&&['meet','notes'].includes(ui.tab)&&!ui.busy)refreshReal().catch(()=>{})},6000);
 }
 async function loadBackground(){
  if(!media.background){if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);backgroundUrl='';ui.backgroundError='';return}
@@ -272,13 +275,11 @@ async function loadBackground(){
 }
 async function refreshReal(){
  const next=await get('/api/real'),changed=JSON.stringify(next)!==JSON.stringify(real);
- if(!changed)return;
- real=next;
- if(ui.realChatId)loadFavorability(ui.realChatId).catch(()=>{});
+ if(changed){real=next;if(ui.realChatId)loadFavorability(ui.realChatId).catch(()=>{})}
  if(dialog.open)return;
- renderKeepingDraftFocus();
+ if(changed)renderKeepingDraftFocus();
  const active=real.conversations.find(c=>c.id===ui.realChatId),incoming=active?.messages.at(-1);
- if(ui.tab==='chat'&&incoming?.role==='assistant'&&ui.guidance[active.id]?.messageId!==incoming.id&&!ui.guidanceError[active.id])generateGuidance(active.id);
+ if(ui.tab==='chat'&&incoming?.role==='assistant'&&ui.guidance[active.id]?.messageId!==incoming.id&&guidanceErrorMessage[active.id]!==incoming.id)generateGuidance(active.id);
 }
 function requireAI(){if(!ai.ready)throw new Error('AI 服务暂不可用，请稍后重试。')}
 function contextFor(id){return {personId:id,messages:s.messages[id].slice(-16).map(({role,content})=>({role,content})),profile:{name:s.profile.name,habit:s.profile.habit,topic:s.profile.topic}}}
@@ -287,11 +288,16 @@ async function generateGuidance(id){
  const realConversation=real.conversations.find(c=>c.id===id),messages=realConversation?.messages||s.messages[id];
  if(!ai.ready||ui.guidanceBusy[id]||(!realConversation&&C.isBlocked(s,id)))return;
  const latest=[...(messages||[])].reverse().find(m=>m.role==='assistant');if(!latest)return;
- ui.guidanceBusy[id]=true;delete ui.guidanceError[id];renderKeepingDraftFocus();
+ ui.guidanceBusy[id]=true;delete ui.guidanceError[id];delete portraitMood[id];renderKeepingDraftFocus();
  try{const data=await post('/api/guidance',realConversation?{conversationId:id,messageId:latest.id}:{personId:id,messageId:latest.id});
   const current=realConversation?real.conversations.find(c=>c.id===id)?.messages:s.messages[id];
-  if(current?.some(m=>m.id===data.messageId))ui.guidance[id]=data;
- }catch(err){ui.guidanceError[id]=err.message}finally{delete ui.guidanceBusy[id];renderKeepingDraftFocus()}
+  if([...current||[]].reverse().find(m=>m.role==='assistant')?.id===data.messageId){ui.guidance[id]=data;portraitMood[id]={messageId:data.messageId,emotion:data.emotion}}
+ }catch(err){ui.guidanceError[id]=err.message;guidanceErrorMessage[id]=latest.id}finally{
+  delete ui.guidanceBusy[id];renderKeepingDraftFocus();
+  const current=realConversation?real.conversations.find(c=>c.id===id)?.messages:s.messages[id];
+  const newest=[...current||[]].reverse().find(m=>m.role==='assistant');
+  if(newest&&newest.id!==latest.id&&ui.tab==='chat'&&(realConversation?ui.realChatId===id:!ui.realChatId&&ui.person===id))generateGuidance(id);
+ }
 }
 async function generateSuggestions(key){requireAI();if(ui.busy)throw new Error('请等待当前请求完成。');const [kind,id]=key.split(':');const n=kind==='reply'?s.notes.find(n=>n.id===id):null;const pid=n?.personId||id;if(C.isBlocked(s,pid))throw new Error('你已屏蔽这个人物。');const body=contextFor(pid);body.intent=ui.intents[key]||'自然回应';body.draft=ui.drafts[key]||'';if(kind==='note'){body.context='根据对方主页的话题，写第一张纸条。只有草稿中主动提供的偏好才可当作事实。';body.messages=[]}if(n){body.context='为收到的纸条写一句回应。';body.messages=[{role:'assistant',content:n.text}]}
  ui.busy='suggest:'+key;ui.error='';render();try{const data=await post('/api/suggestions',body);ui.suggestions[key]=data.suggestions}catch(err){ui.error=err.message;toast(err.message)}finally{ui.busy='';render()}}
