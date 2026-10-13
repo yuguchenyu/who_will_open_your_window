@@ -111,3 +111,5 @@ body{background:radial-gradient(ellipse at 0 12%,#e8efdf80,transparent 45%),radi
 .generation-preview img{width:100%;height:100%;object-fit:contain}
 .generation-result button{margin:4px;max-width:100%}
 .emotion-portrait-card button{white-space:normal;max-width:100%}
+.profile-media-preview:has(img[alt="我的默认立绘"]){height:200px;background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 0/20px 20px}
+.profile-media-preview img[alt="我的默认立绘"]{object-fit:contain}

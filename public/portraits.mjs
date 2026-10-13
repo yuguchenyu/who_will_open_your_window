@@ -19,6 +19,6 @@ export function portraitEmotion(text=''){
  return rules.find(([,pattern])=>pattern.test(cleaned))?.[0]||'default';
 }
 export function portraitSelection(person,text){
- const emotion=portraitEmotion(text),version=person.avatarEmotions?.[emotion];
- return version?{emotion,version}:{emotion:'default',version:person.avatarVersion||0};
+ const emotion=portraitEmotion(text),version=person.portraitEmotions?.[emotion];
+ return version?{emotion,version}:{emotion:'default',version:person.portraitVersion||0};
 }

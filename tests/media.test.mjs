@@ -28,20 +28,22 @@ test('media belongs to the account and can be replaced or removed',async t=>{
  assert.equal((await post(a.cookie,{action:'save',kind:'avatar',data:png.replace('image/png','image/jpeg')})).status,400);
  assert.equal((await post(a.cookie,{action:'save',kind:'avatar',data:png})).status,200);
  assert.equal((await post(a.cookie,{action:'save',kind:'background',data:png})).status,200);
+ assert.equal((await post(a.cookie,{action:'save',kind:'portrait',data:png})).status,200);
+ assert.equal((await post(a.cookie,{action:'save',kind:'avatar',emotion:'happy',data:png})).status,400);
  for(const [emotion] of PORTRAIT_EMOTIONS){
-  const response=await post(a.cookie,{action:'save',kind:'avatar',emotion,data:png});assert.equal(response.status,200);
-  assert((await response.json()).media.avatarEmotions[emotion]>0);
+  const response=await post(a.cookie,{action:'save',kind:'portrait',emotion,data:png});assert.equal(response.status,200);
+  assert((await response.json()).media.portraitEmotions[emotion]>0);
  }
- assert.equal((await post(a.cookie,{action:'save',kind:'avatar',emotion:'../happy',data:png})).status,400);
+ assert.equal((await post(a.cookie,{action:'save',kind:'portrait',emotion:'../happy',data:png})).status,400);
  assert.equal((await post(a.cookie,{action:'save',kind:'background',emotion:'happy',data:png})).status,400);
- assert.equal((await post(a.cookie,{action:'save',kind:'avatar',emotion:'happy',data:png.replace('image/png','image/jpeg')})).status,400);
- const moodUrl=base+'/api/media/avatar/'+a.id+'?emotion=happy';
+ assert.equal((await post(a.cookie,{action:'save',kind:'portrait',emotion:'happy',data:png.replace('image/png','image/jpeg')})).status,400);
+ const moodUrl=base+'/api/media/portrait/'+a.id+'?emotion=happy';
  assert.equal((await fetch(moodUrl,{headers:{cookie:b.cookie}})).status,404);
  assert.equal((await fetch(moodUrl)).status,401);
  assert.equal((await fetch(moodUrl,{headers:{cookie:a.cookie}})).status,200);
- const before=(await(await fetch(base+'/api/me',{headers:{cookie:a.cookie}})).json()).media.avatarEmotions.happy;
- const replaced=await(await post(a.cookie,{action:'save',kind:'avatar',emotion:'happy',data:png})).json();assert(replaced.media.avatarEmotions.happy>before);
- const removed=await(await post(a.cookie,{action:'delete',kind:'avatar',emotion:'happy'})).json();assert(!removed.media.avatarEmotions.happy);assert(removed.media.avatar);assert(removed.media.avatarEmotions.sad);
+ const before=(await(await fetch(base+'/api/me',{headers:{cookie:a.cookie}})).json()).media.portraitEmotions.happy;
+ const replaced=await(await post(a.cookie,{action:'save',kind:'portrait',emotion:'happy',data:png})).json();assert(replaced.media.portraitEmotions.happy>before);
+ const removed=await(await post(a.cookie,{action:'delete',kind:'portrait',emotion:'happy'})).json();assert(!removed.media.portraitEmotions.happy);assert(removed.media.avatar);assert(removed.media.portraitEmotions.sad);
  assert.equal((await fetch(moodUrl,{headers:{cookie:a.cookie}})).status,200); // 回退默认图
  const own=await fetch(base+'/api/media/avatar/'+a.id,{headers:{cookie:a.cookie}});
  assert.equal(own.status,200);assert.equal(own.headers.get('content-type'),'image/png');assert((await own.arrayBuffer()).byteLength>0);
@@ -56,9 +58,9 @@ test('media belongs to the account and can be replaced or removed',async t=>{
 
 test('portrait expressions follow recent wording and safely fall back to default',()=>{
  for(const [text,emotion] of [['今天好开心😊','happy'],['我有点难过','sad'],['我真的生气了😡','angry'],['突然有点害羞','shy'],['哇！没想到','surprised'],['让我想想🤔','thinking'],['你好，周末去散步吗','default'],['我没有生气','default'],['我并不难过','default'],['今天不开心','sad']])assert.equal(portraitEmotion(text),emotion);
- const p={avatarVersion:10,avatarEmotions:{happy:20,sad:30}};
+ const p={portraitVersion:10,portraitEmotions:{happy:20,sad:30}};
  assert.deepEqual(portraitSelection(p,'哈哈好开心'),{emotion:'happy',version:20});
  assert.deepEqual(portraitSelection(p,'有点害羞'),{emotion:'default',version:10});
- assert.deepEqual(portraitSelection({avatarEmotions:{happy:20}},'你好'),{emotion:'default',version:0});
- assert.deepEqual(portraitSelection({avatarEmotions:{happy:20}},'好开心'),{emotion:'happy',version:20});
+ assert.deepEqual(portraitSelection({portraitEmotions:{happy:20}},'你好'),{emotion:'default',version:0});
+ assert.deepEqual(portraitSelection({portraitEmotions:{happy:20}},'好开心'),{emotion:'happy',version:20});
 });

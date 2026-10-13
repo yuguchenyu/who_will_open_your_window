@@ -226,12 +226,13 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,imageTimeout=
     return json(200,getConversationFavorability(database,conversationId,who.user.id));
    }
 
-   if(req.method==='GET'&&(url.pathname==='/api/media/background'||url.pathname.startsWith('/api/media/avatar/'))){
+   if(req.method==='GET'&&(url.pathname==='/api/media/background'||url.pathname.startsWith('/api/media/avatar/')||url.pathname.startsWith('/api/media/portrait/'))){
     const who=authenticate(req);if(who.denied)return json(401,who.denied);
     const background=url.pathname==='/api/media/background';
-    const target=background?who.user.id:url.pathname.slice('/api/media/avatar/'.length);
+    const kind=background?'background':url.pathname.startsWith('/api/media/portrait/')?'portrait':'avatar';
+    const target=background?who.user.id:url.pathname.slice(('/api/media/'+kind+'/').length);
     if(!background&&!canViewAvatar(database,who.user.id,target))return json(404,{error:'图片不存在。',code:'NOT_FOUND'});
-    const media=getMedia(database,target,background?'background':'avatar',url.searchParams.get('emotion')||'default');
+    const media=getMedia(database,target,kind,url.searchParams.get('emotion')||'default');
     if(!media)return json(404,{error:'图片不存在。',code:'NOT_FOUND'});
     res.writeHead(200,{...headers,'Content-Type':media.mime,'Content-Length':media.bytes.length,'Cache-Control':'private, max-age=300'});
     return res.end(media.bytes);
