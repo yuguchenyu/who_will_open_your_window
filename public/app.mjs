@@ -146,7 +146,7 @@ function realChat(){
   ${ui.scenePicker?sceneStrip():''}
   ${portrait.version?`<img class="vn-character-photo" data-emotion="${portrait.emotion}" src="/api/media/portrait/${encodeURIComponent(p.id)}?emotion=${portrait.emotion}&v=${portrait.version}" alt="${e(p.name)}的${e(PORTRAIT_EMOTIONS.find(([id])=>id===portrait.emotion)?.[1]||'默认')}立绘">`:'<div class="vn-character" aria-label="对方未设置形象，显示问号人"><div class="vn-hair"></div><div class="vn-face">?</div><div class="vn-body"></div></div>'}
   <div class="vn-choices" aria-label="回复选项">${replyStyleControl(id)}${[0,1,2].map(i=>choices[i]?btn(`<b>0${i+1}</b><span>${e(choices[i].text)}</span>`,'choose-guidance',id+'|'+i,'vn-choice '+(ui.replyChoice[id]===i?'selected':'')):btn(`<b>0${i+1}</b><span>${ui.guidanceBusy[id]?'正在生成 AI 选项…':'点击生成 AI 选项'}</span>`,'guidance',id,'vn-choice',!ai.ready||!!ui.busy||!!ui.guidanceBusy[id])).join('')}${ui.composing[id]?`<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key]||'')}</textarea>${btn('发送','send-custom-chat',id,'btn small send-chat-btn',!!ui.busy)}</div>`:btn('<b>04</b><span>自己输入想说的话</span>','custom-reply',id,'vn-choice custom '+(ui.replyChoice[id]==='custom'?'selected':''))}</div>
-  <div class="vn-dialogue"><div class="vn-dialogue-top"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div>${favBtnHtml}</div><p class="vn-dialogue-text">${e(latest?.content||'从一句问候开始。')}</p>${latest?.role==='assistant'?guidanceInline(id,data):''}<div class="vn-foot-row">${favBtnHtml}${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
+  <div class="vn-dialogue"><div class="vn-dialogue-top"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div>${favBtnHtml}</div><p class="vn-dialogue-text">${e(latest?.content||'从一句问候开始。')}</p>${emotionInline(id,p,incoming)}${latest?.role==='assistant'?guidanceInline(id,data):''}<div class="vn-foot-row">${favBtnHtml}${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
  </section>${ui.showHistory?`<section class="vn-history" aria-label="聊天记录"><h3>回看记录</h3><div class="messages" id="messages">${messages.map(m=>`<div class="bubble-row ${m.role==='user'?'user':''}">${m.role==='assistant'?matchAvatar(p):''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join('')}</div></section>`:''}`;
 }
 function demoChat(){
@@ -163,7 +163,7 @@ function demoChat(){
   ${ui.scenePicker?sceneStrip():''}
   ${p.sprite?`<img class="vn-character-photo" src="${e(p.sprite)}" alt="${e(p.name)}的立绘">`:'<div class="vn-character" aria-label="对方未设置形象，显示问号人"><div class="vn-hair"></div><div class="vn-face">?</div><div class="vn-body"></div></div>'}
   ${!waiting&&!blocked?`<div class="vn-choices" aria-label="回复选项">${replyStyleControl(p.id)}${[0,1,2].map(i=>choices[i]?btn(`<b>0${i+1}</b><span>${e(choices[i].text)}</span>`,'choose-guidance',p.id+'|'+i,'vn-choice '+(ui.replyChoice[p.id]===i?'selected':'')):btn(`<b>0${i+1}</b><span>${ui.guidanceBusy[p.id]?'正在生成 AI 选项…':'点击重新生成 AI 选项'}</span>`,'guidance',p.id,'vn-choice',!ai.ready||!!ui.busy||!!ui.guidanceBusy[p.id])).join('')}${ui.composing[p.id]?`<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key]||'')}</textarea>${btn('发送','send-custom-chat',p.id,'btn small send-chat-btn',!!ui.busy)}</div>`:btn('<b>04</b><span>自己输入想说的话</span>','custom-reply',p.id,'vn-choice custom '+(ui.replyChoice[p.id]==='custom'?'selected':''))}</div>`:''}
-  <div class="vn-dialogue"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div><p class="vn-dialogue-text">${e(latest?.content||'对话从这里开始。')}</p>${waiting?`<div class="vn-wait">${ui.busy===p.id?'对方正在回应…':'回复尚未完成。'} ${btn('重试回复','retry',p.id,'vn-inline',!ai.ready||!!ui.busy)}</div>`:guidanceInline(p.id,data)}${blocked?'<p class="vn-footnote">你已屏蔽此人物，无法继续聊天。</p>':''}<div class="vn-foot-row">${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',p.id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
+  <div class="vn-dialogue"><div class="vn-speaker">${e(latest?.role==='user'?'你':p.name)}</div><p class="vn-dialogue-text">${e(latest?.content||'对话从这里开始。')}</p>${emotionInline(p.id,p,incoming)}${waiting?`<div class="vn-wait">${ui.busy===p.id?'对方正在回应…':'回复尚未完成。'} ${btn('重试回复','retry',p.id,'vn-inline',!ai.ready||!!ui.busy)}</div>`:guidanceInline(p.id,data)}${blocked?'<p class="vn-footnote">你已屏蔽此人物，无法继续聊天。</p>':''}<div class="vn-foot-row">${btn(ui.showHistory?'收起记录':'回看记录','toggle-history',p.id,'vn-inline')}<span class="foot-tools-mobile">${btn('场景','scene-picker','','vn-inline')}${btn('设置背景','appearance','','vn-inline')}</span></div></div>
  </section>
  ${ui.showHistory?`<section class="vn-history" aria-label="聊天记录"><h3>回看记录</h3><div class="messages" id="messages">${messages.map(m=>`<div class="bubble-row ${m.role==='user'?'user':''}">${m.role==='assistant'?avatar(p,true):''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join('')}</div></section>`:''}`;
 }
@@ -481,6 +481,21 @@ document.addEventListener('change',event=>{if(event.target.id==='generation-cons
 function guidanceInline(id,data){
  const busy=ui.guidanceBusy[id],error=ui.guidanceError[id];
  return `<div class="vn-guidance" aria-label="拾言对话判断"><span class="vn-guidance-title">✧ 拾言判断 <small>仅是文字推测</small></span>${busy?'<span role="status">正在理解这句话…</span>':data?`<div class="vn-intents">${data.interpretations.map(v=>`<span title="${e(v.reason)}">${e(v.intent)} <b>${v.confidence}%</b></span>`).join('')}</div>`:`<span>${e(error||'暂无判断')}</span>`}${btn(data?'重看':'重试','guidance',id,'vn-inline',!ai.ready||!!ui.busy||!!busy)}</div>`;
+}
+function emotionInline(id,person,incoming){
+ const defaultDisplay=person.portraitVersion||person.sprite?'使用默认立绘':'未设置默认立绘，显示问号人';
+ let text='等待对方消息';
+ if(incoming){
+  const analysis=portraitMood[id]?.messageId===incoming.id?portraitMood[id].emotion:null;
+  if(ui.guidanceBusy[id])text='正在判断对方情绪…';
+  else if(analysis){
+   const label=PORTRAIT_EMOTIONS.find(([key])=>key===analysis.label)?.[1];
+   if(analysis.label==='neutral'&&analysis.confidence>=70)text=`平静 · 参考置信度 ${analysis.confidence}% · ${defaultDisplay}`;
+   else if(!label||analysis.confidence<70)text=`暂难判断 · ${defaultDisplay}`;
+   else text=`${label} · 参考置信度 ${analysis.confidence}%${person.portraitEmotions?.[analysis.label]?'':` · 未上传${label}立绘，${defaultDisplay}`}`;
+  }else text=guidanceErrorMessage[id]===incoming.id?`分析暂不可用 · ${defaultDisplay}`:`等待分析 · ${defaultDisplay}`;
+ }
+ return `<div class="vn-emotion" role="status" aria-live="polite" aria-label="AI情绪预测" title="仅根据聊天文字推测，不代表对方真实情绪；置信度是模型参考值，不是统计概率。"><span class="vn-emotion-label">AI 预测对方情绪</span><span>${e(text)}</span><small>仅供参考</small></div>`;
 }
 async function uploadMedia(kind,file,emotion){
  if(!file||ui.busy)return;

@@ -20,9 +20,12 @@ try{
  for(const width of [320,390,1440]){await owner.page.setViewportSize({width,height:844});assert(!await owner.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth));assert(!await owner.page.locator('dialog').evaluate(el=>el.scrollWidth>el.clientWidth));}
  await owner.page.reload();await owner.page.locator('.menu-btn').click();await owner.page.locator('[data-action="tab"][data-id="me"]').click();await owner.page.locator('[data-action="appearance"]').first().click();assert.equal(await owner.page.locator('.emotion-portrait-preview img').count(),2);
  const viewer=await pageFor(a);
- async function show(text,emotion,analysis=emotion==='default'?'uncertain':emotion){modelEmotion=analysis;sendRealMessage(db,b.user.id,chat,text);await viewer.page.reload();await viewer.page.locator('.daily-encounter').waitFor();await viewer.page.locator('.menu-btn').click();await viewer.page.locator('[data-action="tab"][data-id="chat"]').click();await viewer.page.locator(`.vn-character-photo[data-emotion="${emotion}"]`).waitFor();await viewer.page.locator('.vn-character-photo').evaluate(i=>i.decode());}
- await show('今天终于等到了那个好消息','happy');await show('忙了这么久，结果还是落空了','sad');await show('突然害羞了','default');
- await owner.page.locator('[data-action="delete-emotion"][data-id="happy"]').click();await owner.page.locator('[data-action="delete-emotion"][data-id="happy"]').waitFor({state:'detached'});await show('哈哈好开心','default','happy');
+ async function show(text,emotion,analysis=emotion==='default'?'uncertain':emotion){modelEmotion=analysis;sendRealMessage(db,b.user.id,chat,text);await viewer.page.reload();await viewer.page.locator('.daily-encounter').waitFor();await viewer.page.locator('.menu-btn').click();await viewer.page.locator('[data-action="tab"][data-id="chat"]').click();await viewer.page.locator(`.vn-character-photo[data-emotion="${emotion}"]`).waitFor();await viewer.page.locator('.vn-character-photo').evaluate(i=>i.decode());const label={happy:'开心',sad:'难过',shy:'害羞',angry:'生气',surprised:'惊讶',thinking:'思考'}[analysis]||'暂难判断';await viewer.page.locator('.vn-emotion').filter({hasText:label}).waitFor();if(analysis!=='uncertain')assert((await viewer.page.locator('.vn-emotion').innerText()).includes('参考置信度 90%'));}
+ await show('今天终于等到了那个好消息','happy');
+ sendRealMessage(db,a.user.id,chat,'那就继续聊聊吧。');await viewer.page.getByText('那就继续聊聊吧。',{exact:true}).waitFor();assert((await viewer.page.locator('.vn-emotion').innerText()).includes('开心'));
+ for(const width of [320,390,1440]){await viewer.page.setViewportSize({width,height:844});assert(!await viewer.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth));assert(!await viewer.page.locator('.vn-emotion').evaluate(el=>el.scrollWidth>el.clientWidth))}
+ await show('忙了这么久，结果还是落空了','sad');await show('突然害羞了','default');
+ await owner.page.locator('[data-action="delete-emotion"][data-id="happy"]').click();await owner.page.locator('[data-action="delete-emotion"][data-id="happy"]').waitFor({state:'detached'});await show('哈哈好开心','default','happy');assert((await viewer.page.locator('.vn-emotion').innerText()).includes('未上传开心立绘，使用默认立绘'));
 
  // Receive messages without reloading: AI analyses update the active scene.
  modelEmotion='sad';sendRealMessage(db,b.user.id,chat,'新消息：期待了很久的事情没有实现');
@@ -39,7 +42,7 @@ try{
  modelEmotion='sad';sendRealMessage(db,b.user.id,chat,'第二条：原来是通知取消');
  await viewer.page.getByText('第二条：原来是通知取消',{exact:true}).waitFor();
  await viewer.page.evaluate(()=>{window.emotionFrames=[];window.emotionObserver=new MutationObserver(()=>window.emotionFrames.push(document.querySelector('.vn-character-photo')?.dataset.emotion));window.emotionObserver.observe(document.getElementById('app'),{childList:true,subtree:true})});
- releaseAnalysis();await viewer.page.locator('.vn-character-photo[data-emotion="sad"]').waitFor();
+ releaseAnalysis();await viewer.page.locator('.vn-character-photo[data-emotion="sad"]').waitFor();assert((await viewer.page.locator('.vn-emotion').innerText()).includes('难过'));
  assert(!(await viewer.page.evaluate(()=>window.emotionFrames)).includes('happy'));
  await viewer.page.evaluate(()=>window.emotionObserver.disconnect());
  await owner.context.close();await viewer.context.close();assert.deepEqual(errors,[]);console.log('PASS: emotion upload, persistence, removal, responsive modal, automatic real-chat expressions and default fallback.');
