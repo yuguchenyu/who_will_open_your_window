@@ -1,1 +1,17 @@
-export const REPLY_STYLES=[{id:'natural',label:'自然日常'},{id:'humorous',label:'轻松幽默'},{id:'warm',label:'温柔关心'},{id:'brief',label:'直接简短'}];
+/**
+ * 前后端共用的回复建议风格选项。
+ * id 是接口传输与校验使用的稳定值，label 仅用于界面展示。
+ */
+
+export const REPLY_STYLES = [
+
+  // 默认使用平实自然的日常表达，作为未指定风格时的回退选项。
+  { id: 'natural', label: '自然日常' },
+
+  // 轻松幽默的具体边界由服务端提示词规定，这里只维护选项身份。
+  { id: 'humorous', label: '轻松幽默' },
+
+  // 温柔关心与直接简短同样只调整措辞，不代表改变用户的交流意图。
+  { id: 'warm', label: '温柔关心' },
+  { id: 'brief', label: '直接简短' }
+];

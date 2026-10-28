@@ -1,12 +1,23 @@
+/**
+ * 登录与注册页面：渲染表单、收集资料并提交认证请求。
+ * 提交失败时恢复非密码字段，让用户可以继续修改并重试。
+ */
+
 import {post} from './api.mjs';
 
 const app = document.getElementById('app');
 const e = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+
+// 登录失效原因来自跳转参数，仅匹配预定义提示，不直接显示任意查询文本。
 const reason = new URLSearchParams(location.search).get('reason');
 let mode = 'login';
 let busy = false;
 const notices = {replaced: '你的账号已在另一台设备登录，这里已退出。重新登录即可继续。'};
 
+/**
+ * 按登录或注册模式生成表单并重新绑定交互。
+ * 错误与退出原因分别展示，提交期间禁用主提交按钮。
+ */
 function render(error = '') {
   app.innerHTML = `
    <main class="auth">
@@ -31,6 +42,10 @@ function render(error = '') {
   document.getElementById('switch').addEventListener('click', () => { mode = mode === 'login' ? 'register' : 'login'; render(); });
 }
 
+/**
+ * 收集表单并按当前模式调用认证接口。
+ * 注册额外提交介绍与展示授权，成功进入主页，失败恢复资料并聚焦密码框。
+ */
 async function submit(event) {
   event.preventDefault();
   if (busy) return;
@@ -39,10 +54,14 @@ async function submit(event) {
   const selfIntro = mode === 'register' ? document.getElementById('self-intro').value : '';
   const desiredIntro = mode === 'register' ? document.getElementById('desired-intro').value : '';
   const shareForMatching = mode === 'register' && document.getElementById('share-matching').checked;
+
+  // 重绘前先读取全部表单值，提交期间的禁用态不会丢失本次请求参数。
   busy = true;
   render();
   try {
     await post(mode === 'login' ? '/api/login' : '/api/register', {username, password, ...(mode === 'register' ? {selfIntro, desiredIntro, shareForMatching} : {})});
+
+    // 认证成功后替换当前历史记录，返回键不会再次停在刚提交的认证表单。
     location.replace('/');
   } catch (error) {
     busy = false;
