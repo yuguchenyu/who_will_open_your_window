@@ -604,6 +604,12 @@ function sceneStrip() {
   return `<div class="vn-scene-strip" role="group" aria-label="选择场景背景">${SCENES.map((sc) => `<button type="button" class="vn-scene-chip ${ui.preset === sc.id ? 'active' : ''}" data-action="pick-scene" data-id="${sc.id}">${sc.id ? `<img src="/bg/${sc.id}-watercolor.png" alt="">` : ''}<span>${e(sc.name)}</span></button>`).join('')}</div>`;
 }
 
+// 回看记录：galgame 式全屏覆盖层，立绘与背景透过半透明面板可见；打开时定位到最新一条，ESC 或 × 关闭。
+function backlogHtml(messages,p,assistantAvatar){
+ const shown=messages.slice(-100);
+ return `<div class="vn-backlog" role="dialog" aria-modal="true" aria-label="回看记录"><header class="vn-backlog-head"><h3>回看记录</h3>${messages.length>shown.length?'<span class="vn-backlog-note">仅显示最近 100 条</span>':''}<button type="button" class="vn-backlog-close" data-action="toggle-history" data-id="${e(p.id)}" aria-label="收起记录">×</button></header><div class="vn-backlog-list" id="messages">${shown.length?shown.map(m=>`<div class="bubble-row ${m.role==='user'?'user':''}">${m.role==='assistant'?assistantAvatar():''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join(''):'<p class="vn-backlog-empty">还没有对话记录。</p>'}</div></div>`;
+}
+
 /**
  * 生成真人聊天舞台、回复选项、立绘和可选历史记录。
  * 建议只使用与当前消息和风格一致的缓存，情绪资源由选择器独立回退。
@@ -641,7 +647,7 @@ function realChat() {
   ${portrait.version ? `<img class="vn-character-photo" data-emotion="${portrait.emotion}" src="/api/media/portrait/${encodeURIComponent(p.id)}?emotion=${portrait.emotion}&v=${portrait.version}" alt="${e(p.name)}的${e(PORTRAIT_EMOTIONS.find(([id]) => id === portrait.emotion)?.[1] || '默认')}立绘">` : '<div class="vn-character" aria-label="对方未设置形象，显示问号人"><div class="vn-hair"></div><div class="vn-face">?</div><div class="vn-body"></div></div>'}
   <div class="vn-choices" aria-label="回复选项">${replyStyleControl(id)}${[0, 1, 2].map((i) => (choices[i] ? btn(`<b>0${i + 1}</b><span>${e(choices[i].text)}</span>`, 'choose-guidance', id + '|' + i, 'vn-choice ' + (ui.replyChoice[id] === i ? 'selected' : '')) : btn(`<b>0${i + 1}</b><span>${ui.guidanceBusy[id] ? '正在生成 AI 选项…' : '点击生成 AI 选项'}</span>`, 'guidance', id, 'vn-choice', !ai.ready || !!ui.busy || !!ui.guidanceBusy[id]))).join('')}${ui.composing[id] ? `<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key] || '')}</textarea>${btn('发送', 'send-custom-chat', id, 'btn small send-chat-btn', !!ui.busy)}</div>` : btn('<b>04</b><span>自己输入想说的话</span>', 'custom-reply', id, 'vn-choice custom ' + (ui.replyChoice[id] === 'custom' ? 'selected' : ''))}</div>
   <div class="vn-dialogue"><div class="vn-dialogue-top"><div class="vn-speaker">${e(latest?.role === 'user' ? '你' : p.name)}</div>${favBtnHtml}</div><p class="vn-dialogue-text">${e(latest?.content || '从一句问候开始。')}</p>${emotionInline(id, p, incoming)}${latest?.role === 'assistant' ? guidanceInline(id, data) : ''}<div class="vn-foot-row">${favBtnHtml}${btn(ui.showHistory ? '收起记录' : '回看记录', 'toggle-history', id, 'vn-inline')}<span class="foot-tools-mobile">${btn('场景', 'scene-picker', '', 'vn-inline')}${btn('设置背景', 'appearance', '', 'vn-inline')}</span></div></div>
- </section>${ui.showHistory ? `<section class="vn-history" aria-label="聊天记录"><h3>回看记录</h3><div class="messages" id="messages">${messages.map((m) => `<div class="bubble-row ${m.role === 'user' ? 'user' : ''}">${m.role === 'assistant' ? matchAvatar(p) : ''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join('')}</div></section>` : ''}`;
+ </section>${ui.showHistory ? backlogHtml(messages, p, () => matchAvatar(p)) : ''}`;
 }
 
 /**
@@ -673,7 +679,7 @@ function demoChat() {
   ${!waiting && !blocked ? `<div class="vn-choices" aria-label="回复选项">${replyStyleControl(p.id)}${[0, 1, 2].map((i) => (choices[i] ? btn(`<b>0${i + 1}</b><span>${e(choices[i].text)}</span>`, 'choose-guidance', p.id + '|' + i, 'vn-choice ' + (ui.replyChoice[p.id] === i ? 'selected' : '')) : btn(`<b>0${i + 1}</b><span>${ui.guidanceBusy[p.id] ? '正在生成 AI 选项…' : '点击重新生成 AI 选项'}</span>`, 'guidance', p.id, 'vn-choice', !ai.ready || !!ui.busy || !!ui.guidanceBusy[p.id]))).join('')}${ui.composing[p.id] ? `<div class="vn-choice vn-choice-editing"><b>04</b><textarea class="vn-choice-input" data-draft="${e(key)}" id="draft-${e(key)}" maxlength="500" aria-label="聊天消息" placeholder="写下你想说的… 按 Enter 发送">${e(ui.drafts[key] || '')}</textarea>${btn('发送', 'send-custom-chat', p.id, 'btn small send-chat-btn', !!ui.busy)}</div>` : btn('<b>04</b><span>自己输入想说的话</span>', 'custom-reply', p.id, 'vn-choice custom ' + (ui.replyChoice[p.id] === 'custom' ? 'selected' : ''))}</div>` : ''}
   <div class="vn-dialogue"><div class="vn-speaker">${e(latest?.role === 'user' ? '你' : p.name)}</div><p class="vn-dialogue-text">${e(latest?.content || '对话从这里开始。')}</p>${emotionInline(p.id, p, incoming)}${waiting ? `<div class="vn-wait">${ui.busy === p.id ? '对方正在回应…' : '回复尚未完成。'} ${btn('重试回复', 'retry', p.id, 'vn-inline', !ai.ready || !!ui.busy)}</div>` : guidanceInline(p.id, data)}${blocked ? '<p class="vn-footnote">你已屏蔽此人物，无法继续聊天。</p>' : ''}<div class="vn-foot-row">${btn(ui.showHistory ? '收起记录' : '回看记录', 'toggle-history', p.id, 'vn-inline')}<span class="foot-tools-mobile">${btn('场景', 'scene-picker', '', 'vn-inline')}${btn('设置背景', 'appearance', '', 'vn-inline')}</span></div></div>
  </section>
- ${ui.showHistory ? `<section class="vn-history" aria-label="聊天记录"><h3>回看记录</h3><div class="messages" id="messages">${messages.map((m) => `<div class="bubble-row ${m.role === 'user' ? 'user' : ''}">${m.role === 'assistant' ? avatar(p, true) : ''}<div class="bubble-wrap"><small class="message-time">${time(m.at)}</small><div class="bubble">${e(m.content)}</div></div></div>`).join('')}</div></section>` : ''}`;
+ ${ui.showHistory ? backlogHtml(messages, p, () => avatar(p, true)) : ''}`;
 }
 
 /**
@@ -758,11 +764,18 @@ function menuPanel() {
  * 重绘后让已展开的历史消息滚动到底部，持续展示最新内容。
  */
 function render() {
-  // 主区域整体重绘后同步更新弹窗，并让展开的消息记录滚动到末尾。
+  // 回看记录打开时轮询会触发重渲染：贴底则跟随最新，用户向上翻阅则按比例保持位置。
+  const prev = document.getElementById('messages'),
+    prevTop = prev?.scrollTop ?? 0,
+    prevMax = (prev?.scrollHeight ?? 0) - (prev?.clientHeight ?? 0);
+  const stick = !prev || prevMax - prevTop < 48;
   app.innerHTML = `<button type="button" class="menu-btn${ui.menu ? ' open' : ''}" data-action="menu" aria-label="${ui.menu ? '关闭菜单' : '打开菜单'}" aria-expanded="${ui.menu ? 'true' : 'false'}"><span class="window-mark" aria-hidden="true"></span></button>${menuPanel()}<main class="main ${ui.tab === 'chat' ? 'fullscreen' : ''}"><span id="ai-status" class="sr-only">${ai.ready ? 'AI 服务可用' : 'AI 服务暂不可用'}</span>${ui.tab === 'chat' ? '' : warning()}${ui.error ? `<div class="error-box" role="alert">${e(ui.error)}</div>` : ''}${{ meet, notes, chat, me }[ui.tab]()}</main>`;
   renderModal();
   const messages = document.getElementById('messages');
-  if (messages) messages.scrollTop = messages.scrollHeight;
+  if (messages)
+    messages.scrollTop = stick
+      ? messages.scrollHeight
+      : prevTop / (prevMax || 1) * (messages.scrollHeight - messages.clientHeight);
 }
 
 /**
@@ -1908,6 +1921,11 @@ document.addEventListener('click', (event) => {
 // 04 卡片内编辑：Enter 直接说出这句话，Esc 收起回到普通选项。
 document.addEventListener('keydown', (event) => {
   const t = event.target;
+  if (event.key === 'Escape' && ui.showHistory && !t?.classList?.contains('vn-choice-input')) {
+    ui.showHistory = false;
+    render();
+    return;
+  }
   if (t?.classList?.contains('vn-choice-input')) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();

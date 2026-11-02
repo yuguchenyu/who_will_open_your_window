@@ -2168,3 +2168,18 @@ input[type='checkbox'] {
   top: 16px;
   left: 72px;
 }
+/* —— galgame 式回看记录：全屏覆盖层，立绘与背景透出 —— */
+.vn-backlog{position:fixed;inset:0;z-index:44;display:flex;flex-direction:column;background:linear-gradient(180deg,#0e1a12a6,#14251ac2);backdrop-filter:blur(5px);animation:vn-backlog-in .22s ease}
+@keyframes vn-backlog-in{from{opacity:0}to{opacity:1}}
+.vn-backlog-head{display:flex;align-items:center;gap:12px;padding:18px 26px 12px;border-bottom:1px solid #ffffff17}
+.vn-backlog-head h3{margin:0;font:18px "SimSun",serif;letter-spacing:3px;color:#f0f5e6;font-weight:400;text-shadow:0 1px 3px #0d181180}
+.vn-backlog-note{font-size:10px;color:#a7b89d}
+.vn-backlog-close{margin-left:auto;width:32px;height:32px;border-radius:50%;background:#0e1a1266;border:1px solid #ffffff33;color:#dce8d2;font-size:16px;line-height:1;cursor:pointer;transition:background .15s,transform .15s}
+.vn-backlog-close:hover{background:#ffffff1f;transform:scale(1.06)}
+.vn-backlog-list{flex:1;min-height:0;overflow-y:auto;padding:18px 26px 30px;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:#4c6350 transparent}
+.vn-backlog-empty{margin:auto;color:#a7b89d;font-size:12px;letter-spacing:1px;text-shadow:0 1px 3px #0d181180}
+.vn-backlog .bubble-wrap{max-width:min(76%,620px)}
+.vn-backlog .message-time{color:#a3b498;text-shadow:0 1px 2px #0d18117a}
+.vn-backlog .bubble{background:#12211a8f;border:1px solid #ffffff2b;color:#f0f4e8;text-shadow:0 1px 2px #0d18115e}
+.vn-backlog .bubble-row.user .bubble{background:#2e4a35ad;border-color:#a9c99b73;color:#f2f6ea}
+@media(max-width:720px){.vn-backlog-head{padding:14px 16px 10px}.vn-backlog-list{padding:12px 16px 22px}.vn-backlog .bubble-wrap{max-width:88%}}
