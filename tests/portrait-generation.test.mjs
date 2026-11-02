@@ -10,7 +10,7 @@ import {encodePortraitPng,decodePortraitPng,prepareGeneratedPortrait} from '../l
 const pixels=Buffer.from([0,0,0,0,10,20,30,255,0,0,0,0,50,60,70,255]);
 const png=encodePortraitPng({width:2,height:2,pixels});
 const dataUrl='data:image/png;base64,'+png.toString('base64');
-const config={configured:true,base:'https://images.example.test/v1',key:'test-only-key'};
+const config={configured:true,base:'https://images.example.test/v1',key:'test-only-key',imageModel:'gpt-image-2.5-sunburst'};
 function fixture(t,fetchImpl,timeout){const db=openDatabase(':memory:'),a=register(db,{username:'gen_a',password:'password12'}),b=register(db,{username:'gen_b',password:'password12'});saveMedia(db,a.user.id,'portrait',dataUrl);const service=createPortraitGeneration(db,config,{fetchImpl,timeout});t.after(()=>{service.close();db.close()});return {db,a:a.user.id,b:b.user.id,service}}
 const input=(emotion='happy')=>({emotion,consent:true,requestId:randomUUID()});
 async function finished(service,id){for(let i=0;i<100;i++){const job=service.state(id).job;if(job.status!=='running')return job;await new Promise(r=>setTimeout(r,5))}throw Error('job did not finish')}

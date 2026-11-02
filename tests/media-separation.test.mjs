@@ -15,7 +15,7 @@ const data='data:image/png;base64,'+png.toString('base64');
 test('avatar and sprite uploads, removal, emotion fallback and AI reference are independent',async t=>{
  const db=openDatabase(':memory:');t.after(()=>db.close());const id=register(db,{username:'separate_media',password:'password12'}).user.id;
  saveMedia(db,id,'avatar',data);assert.equal(mediaStatus(db,id).portrait,false);assert.deepEqual(portraitSelection(mediaStatus(db,id),'你好'),{emotion:'default',version:0});
- const service=createPortraitGeneration(db,{configured:true,base:'https://images.test/v1',key:'test'},{fetchImpl:async()=>Response.json({data:[{b64_json:png.toString('base64')}]})});
+ const service=createPortraitGeneration(db,{configured:true,base:'https://images.test/v1',key:'test',imageModel:'gpt-image-2.5-sunburst'},{fetchImpl:async()=>Response.json({data:[{b64_json:png.toString('base64')}]})});
  t.after(()=>service.close());assert.throws(()=>service.start(id,{emotion:'happy',consent:true,requestId:randomUUID()}),/默认立绘/);
  saveMedia(db,id,'portrait',data);saveMedia(db,id,'portrait',data,'sad');assert.throws(()=>saveMedia(db,id,'avatar',data,'sad'));
  assert.equal(getMedia(db,id,'portrait','happy').updated_at,mediaStatus(db,id).portraitVersion);

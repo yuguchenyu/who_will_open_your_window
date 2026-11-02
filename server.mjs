@@ -19,7 +19,7 @@ import {readState} from './lib/state.mjs';
 import {drawState,draw,decide,remove,collection,isCollected} from './lib/draw.mjs';
 import {validateIntroduction, matchingMessages, parseTags, saveMatchingProfile, matchingProfile, storeTags} from './lib/matching.mjs';
 import {saveMedia,deleteMedia,mediaStatus,getMedia} from './lib/media.mjs';
-import {createPortraitGeneration} from './lib/portrait-generation.mjs';
+import {createPortraitGeneration,DEFAULT_IMAGE_MODEL} from './lib/portrait-generation.mjs';
 import {PORTRAIT_EMOTIONS} from './public/portraits.mjs';
 import {replyStyleOf,replyStylePrompt} from './lib/reply-style.mjs';
 import {realSnapshot,sendRealNote,respondRealNote,sendRealMessage,conversation,canViewAvatar} from './lib/real-chat.mjs';
@@ -55,7 +55,7 @@ export function readConfig(root=ROOT,env=process.env){
 
  // 图片模型可单独配置服务地址和密钥；未提供时沿用文本服务连接。
  const imageBase=(take('AI_IMAGE_BASE_URL')||base).replace(/\/+$/,'');
- const imageKey=take('AI_IMAGE_API_KEY')||key, imageModel=take('AI_IMAGE_MODEL')||'gpt-image-2.5-sunburst';
+ const imageKey=take('AI_IMAGE_API_KEY')||key, imageModel=take('AI_IMAGE_MODEL')||DEFAULT_IMAGE_MODEL;
  let imageValid=false;try{const u=new URL(imageBase);imageValid=(u.protocol==='https:'||(u.protocol==='http:'&&(allowHttpAi||['127.0.0.1','localhost','[::1]'].includes(u.hostname))))&&!u.username&&!u.password&&!u.search&&!u.hash&&!u.hostname.endsWith('.example')}catch{}
  return {base,key,model,port,lan,lanFlag,allowIps,dbPath,imageBase,imageKey,imageModel,imageConfigured:imageValid&&!!imageKey&&imageKey!=='your-api-key',configured:valid&&!!key&&!!model&&key!=='your-api-key'&&model!=='your-model-name'};
 }

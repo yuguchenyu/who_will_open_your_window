@@ -7,9 +7,13 @@ import {encodePortraitPng} from '../lib/portrait-png.mjs';
 import assert from 'node:assert/strict';
 const png=encodePortraitPng({width:2,height:2,pixels:Buffer.from([0,0,0,0,40,50,60,255,0,0,0,0,60,70,80,255])});
 const db=openDatabase(':memory:'),auth=register(db,{username:'image_browser',password:'password12'});saveMedia(db,auth.user.id,'portrait','data:image/png;base64,'+png.toString('base64'));
-let release,calls=0;const server=createServer({configured:false,imageConfigured:true,imageBase:'https://images.test/v1',imageKey:'test-key'},{db,fetchImpl:async()=>{calls++;await new Promise(r=>release=r);return Response.json({data:[{b64_json:png.toString('base64')}]})}});
+let release,calls=0;const server=createServer({configured:false,imageConfigured:true,imageBase:'https://dashscope.aliyuncs.com/api/v1',imageKey:'test-key',imageModel:'qwen-image-2.1-pro'},{db,fetchImpl:async(_url,options)=>{
+ if(options.method==='GET')return new Response(png,{headers:{'Content-Type':'image/png'}});
+ calls++;await new Promise(r=>release=r);
+ return Response.json({output:{choices:[{message:{role:'assistant',content:[{image:'https://dashscope-test.oss-cn-beijing.aliyuncs.com/portrait.png'}]}}]}});
+}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
-const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':'C:/Program Files/Google/Chrome/Application/chrome.exe'),headless:true});
 try{
  const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});await context.addCookies([{name:COOKIE_NAME,value:auth.token,url:base}]);
  await context.addInitScript(()=>{Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined,configurable:true})});
