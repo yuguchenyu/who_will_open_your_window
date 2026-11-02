@@ -196,7 +196,7 @@ export function parseGuidance(raw){
 export function createServer(config,{fetchImpl=fetch,timeout=35000,imageTimeout=180000,db}={}){
  const database=db||openDatabase(config.dbPath||path.join(ROOT,'runtime','app.db'));
  const portraits=createPortraitGeneration(database,config,{fetchImpl,timeout:imageTimeout});
- let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css','/draw.css':'draw.css','/portraits.mjs':'portraits.mjs','/reply-styles.mjs':'reply-styles.mjs'};
+ let active=0;const whitelist={'/':'index.html','/index.html':'index.html','/app.mjs':'app.mjs','/core.mjs':'core.mjs','/api.mjs':'api.mjs','/style.css':'style.css','/login.html':'login.html','/login.mjs':'login.mjs','/entrance.mjs':'entrance.mjs','/watercolor.css':'watercolor.css','/draw.css':'draw.css','/portraits.mjs':'portraits.mjs','/reply-styles.mjs':'reply-styles.mjs','/site-icon.png':'site-icon.png','/favicon.ico':'site-icon.png'};
 
  // 标签分析共享文本模型并发额度。
  // 等待模型期间资料可能变化，写入前必须再次比对原始介绍。
@@ -262,7 +262,7 @@ export function createServer(config,{fetchImpl=fetch,timeout=35000,imageTimeout=
 
    // —— 静态文件 ——
    if(req.method==='GET'&&Object.hasOwn(whitelist,url.pathname)){
-    const file=whitelist[url.pathname];const content=await fs.promises.readFile(path.join(ROOT,'public',file));res.writeHead(200,{...headers,'Content-Type':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(content);
+    const file=whitelist[url.pathname];const content=await fs.promises.readFile(path.join(ROOT,'public',file));res.writeHead(200,{...headers,'Content-Type':file.endsWith('.png')?'image/png':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'});return res.end(content);
    }
    // 静态图片：/bg/（场景背景）与 /character/（立绘），只放行固定命名的图片（无路径分隔符、无点号，防目录穿越）。
    if(req.method==='GET'&&/^\/(?:bg|character)\/[a-z0-9_-]+\.(jpg|png|webp)$/.test(url.pathname)){
