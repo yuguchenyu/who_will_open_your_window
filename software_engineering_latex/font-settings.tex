@@ -1,0 +1,117 @@
+% !TeX encoding = UTF-8
+% 字体映射。此文件由主文件在 fontspec、xeCJK 加载后读入。
+% 优先使用本机已安装的原文字体；缺少时采用 fonts/ 中的开源替代字体。
+% 所有字体名、样式和图片以原文为依据；替代字体并非原字体的逐字形副本。
+
+% 西文主字体与 Times New Roman 对应的文字运行。
+\IfFontExistsTF{Times New Roman}{%
+  \setmainfont{Times New Roman}
+  \newfontfamily\WordLatinTimes{Times New Roman}
+}{%
+  \setmainfont[
+    Path=fonts/,
+    BoldFont=texgyretermes-bold.otf,
+    ItalicFont=texgyretermes-italic.otf,
+    BoldItalicFont=texgyretermes-bolditalic.otf
+  ]{texgyretermes-regular.otf}
+  \newfontfamily\WordLatinTimes[
+    Path=fonts/,
+    BoldFont=texgyretermes-bold.otf,
+    ItalicFont=texgyretermes-italic.otf,
+    BoldItalicFont=texgyretermes-bolditalic.otf
+  ]{texgyretermes-regular.otf}
+}
+
+% 宋体：同时映射西文运行及中文运行。
+\IfFontExistsTF{SimSun}{%
+  \setCJKmainfont[AutoFakeBold=1.5,AutoFakeSlant=.2]{SimSun}
+  \setCJKfamilyfont{WordSong}[AutoFakeBold=1.5,AutoFakeSlant=.2]{SimSun}
+  \newfontfamily\WordLatinSong[AutoFakeBold=1.5,AutoFakeSlant=.2]{SimSun}
+}{%
+  \setCJKmainfont[
+    Path=fonts/,Script=Default,
+    BoldFont=FandolSong-Bold.otf,
+    ItalicFont=FandolKai-Regular.otf
+  ]{FandolSong-Regular.otf}
+  \setCJKfamilyfont{WordSong}[
+    Path=fonts/,Script=Default,
+    BoldFont=FandolSong-Bold.otf,
+    ItalicFont=FandolKai-Regular.otf
+  ]{FandolSong-Regular.otf}
+  \newfontfamily\WordLatinSong[
+    Path=fonts/,Script=Default,
+    BoldFont=FandolSong-Bold.otf,
+    ItalicFont=FandolKai-Regular.otf
+  ]{FandolSong-Regular.otf}
+}
+
+% 黑体。
+\IfFontExistsTF{SimHei}{%
+  \setCJKfamilyfont{WordHei}[AutoFakeBold=1.5,AutoFakeSlant=.2]{SimHei}
+  \newfontfamily\WordLatinHei[AutoFakeBold=1.5,AutoFakeSlant=.2]{SimHei}
+}{%
+  \setCJKfamilyfont{WordHei}[
+    Path=fonts/,Script=Default,
+    BoldFont=FandolHei-Bold.otf,AutoFakeSlant=.2
+  ]{FandolHei-Regular.otf}
+  \newfontfamily\WordLatinHei[
+    Path=fonts/,Script=Default,
+    BoldFont=FandolHei-Bold.otf,AutoFakeSlant=.2
+  ]{FandolHei-Regular.otf}
+}
+
+% 楷体：兼容 Windows 新旧名称。
+\IfFontExistsTF{KaiTi}{%
+  \setCJKfamilyfont{WordKai}[AutoFakeBold=1.5,AutoFakeSlant=.2]{KaiTi}
+  \newfontfamily\WordLatinKai[AutoFakeBold=1.5,AutoFakeSlant=.2]{KaiTi}
+}{%
+  \IfFontExistsTF{KaiTi_GB2312}{%
+    \setCJKfamilyfont{WordKai}[AutoFakeBold=1.5,AutoFakeSlant=.2]{KaiTi_GB2312}
+    \newfontfamily\WordLatinKai[AutoFakeBold=1.5,AutoFakeSlant=.2]{KaiTi_GB2312}
+  }{%
+    \setCJKfamilyfont{WordKai}[
+      Path=fonts/,Script=Default,AutoFakeBold=1.5,AutoFakeSlant=.2
+    ]{FandolKai-Regular.otf}
+    \newfontfamily\WordLatinKai[
+      Path=fonts/,Script=Default,AutoFakeBold=1.5,AutoFakeSlant=.2
+    ]{FandolKai-Regular.otf}
+  }
+}
+
+% 仿宋。
+\IfFontExistsTF{FangSong}{%
+  \setCJKfamilyfont{WordFang}[AutoFakeBold=1.5,AutoFakeSlant=.2]{FangSong}
+  \newfontfamily\WordLatinFang[AutoFakeBold=1.5,AutoFakeSlant=.2]{FangSong}
+}{%
+  \setCJKfamilyfont{WordFang}[
+    Path=fonts/,Script=Default,AutoFakeBold=1.5,AutoFakeSlant=.2
+  ]{FandolFang-Regular.otf}
+  \newfontfamily\WordLatinFang[
+    Path=fonts/,Script=Default,AutoFakeBold=1.5,AutoFakeSlant=.2
+  ]{FandolFang-Regular.otf}
+}
+
+% 华文中宋。Fandol 没有同字形字体，缺少原字体时用宋体风格替代。
+\IfFontExistsTF{STZhongsong}{%
+  \setCJKfamilyfont{WordZhong}[AutoFakeBold=1.5,AutoFakeSlant=.2]{STZhongsong}
+  \newfontfamily\WordLatinZhong[AutoFakeBold=1.5,AutoFakeSlant=.2]{STZhongsong}
+}{%
+  \setCJKfamilyfont{WordZhong}[
+    Path=fonts/,Script=Default,AutoFakeBold=1.5,AutoFakeSlant=.2
+  ]{FandolSong-Regular.otf}
+  \newfontfamily\WordLatinZhong[
+    Path=fonts/,Script=Default,AutoFakeBold=1.5,AutoFakeSlant=.2
+  ]{FandolSong-Regular.otf}
+}
+
+% 少量继承自 Word 默认样式的西文字体。
+\IfFontExistsTF{Cambria}{%
+  \newfontfamily\WordLatinCambria{Cambria}
+}{%
+  \let\WordLatinCambria\WordLatinTimes
+}
+\IfFontExistsTF{Calibri}{%
+  \newfontfamily\WordLatinCalibri{Calibri}
+}{%
+  \let\WordLatinCalibri\WordLatinTimes
+}

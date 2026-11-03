@@ -1,0 +1,139 @@
+% 保留 Word 样本的直接格式。正文内容见 content/ 下各个文件。
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{word-layout}[2026/11/03 Original Word layout conversion]
+\RequirePackage{iftex}
+\ifXeTeX\else
+  \PackageError{word-layout}{XeLaTeX is required}{Please select XeLaTeX.}
+\fi
+\RequirePackage{fontspec}
+\RequirePackage{xeCJK}
+\RequirePackage[
+  paperwidth=595.3bp,paperheight=841.9bp,
+  top=72bp,bottom=72bp,left=90bp,right=90bp,
+  headheight=14.5bp,headsep=14.95bp,footskip=22.4bp
+]{geometry}
+\RequirePackage{graphicx}
+\RequirePackage{xcolor}
+\RequirePackage{array}
+\RequirePackage{booktabs}
+\RequirePackage{fancyhdr}
+\RequirePackage{etoolbox}
+\RequirePackage{xfp}
+\RequirePackage[unicode,hidelinks]{hyperref}
+
+\input{font-settings.tex}
+\xeCJKsetup{CJKspace=true,PunctStyle=quanjiao,CJKecglue={\hskip .25em plus .05em minus .05em}}
+\xeCJKDeclareCharClass{CJK}{"2460,"25A1}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{6bp}
+\raggedbottom
+\widowpenalty=0
+\clubpenalty=0
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+% 原样本中“单倍/1.25倍/1.5倍/2倍”分别保留；固定行距直接使用 pt 数值。
+% Word 与 TeX 的字体行高算法不同，\WordLineScale 只控制自动行距。
+\newcommand{\WordLineScale}{1.15}
+\newcommand{\WordAutoLine}[2]{\fpeval{#1*#2*\WordLineScale}}
+\newcommand{\WordLineHeight}{15}
+
+% args: 对齐、基础字号、行高、左缩进、右缩进、首行缩进、段前、段后。
+\newenvironment{WordParagraph}[8]{%
+  \par\addvspace{#7bp}%
+  \begingroup
+  \def\WordLineHeight{#3}%
+  \def\WordAfterSpace{#8}%
+  \WordLatinTimes\CJKfamily{WordSong}\mdseries\upshape\color{black}%
+  \fontsize{#2bp}{#3bp}\selectfont
+  \baselineskip=#3bp\relax
+  \lineskip=0pt\relax\lineskiplimit=0pt\relax
+  \leftskip=#4bp\relax
+  \rightskip=#5bp\relax
+  \parindent=#6bp\relax
+  \parfillskip=0pt plus 1fil\relax
+  \ifstrequal{#1}{center}{%
+    \leftskip=#4bp plus 1fil\relax
+    \rightskip=#5bp plus 1fil\relax
+    \parfillskip=0pt\relax
+  }{}%
+  \ifstrequal{#1}{right}{%
+    \leftskip=#4bp plus 1fil\relax
+    \parfillskip=0pt\relax
+  }{}%
+  \ifstrequal{#1}{left}{\rightskip=#5bp plus 1fil\relax}{}%
+  \ignorespaces
+}{%
+  \par\addvspace{\WordAfterSpace bp}%
+  \endgroup
+}
+
+% args: 西文字体、中文字体、字号、粗体(0/1)、斜体(0/1)、颜色、下划线(0/1)、文本。
+\newcommand{\WordRun}[8]{%
+  {\csname WordLatin#1\endcsname\CJKfamily{Word#2}%
+   \fontsize{#3bp}{\WordLineHeight bp}\selectfont
+   \ifnum#4=1\bfseries\else\mdseries\fi
+   \ifnum#5=1\itshape\else\upshape\fi
+   \color[HTML]{#6}%
+   \ifnum#7=1\WordUnderline{#8}\else#8\fi}%
+}
+\newcommand{\WordUnderline}[1]{%
+  \begingroup\setbox0=\hbox{#1}%
+  \leavevmode\rlap{\raisebox{-.14em}{\rule{\wd0}{.4bp}}}\box0\endgroup
+}
+
+% 原文中连续空格的宽度不能被 TeX 合并。
+\newcommand{\WordSpace}[1]{%
+  \ifnum#1=1\hskip\fontdimen2\font\relax\else\hspace*{\dimexpr#1\fontdimen2\font\relax}\fi
+}
+\newcommand{\WordHAnsi}[2]{{\csname WordLatin#1\endcsname #2}}
+\newcommand{\WordEmpty}{\mbox{}}
+\newcommand{\WordAutoSpaceOn}{\xeCJKsetup{CJKecglue={\hskip .25em plus .05em minus .05em}}}
+\newcommand{\WordAutoSpaceOff}{\xeCJKsetup{CJKecglue={\hskip 0pt}}}
+
+% 原手工目录使用 459 pt 右对齐制表位，比正文宽度更靠右。
+% args: 左侧带格式文字、页码、制表位、点线颜色。
+\newcommand{\WordTOCLine}[4]{%
+  \noindent\makebox[\textwidth][l]{%
+    \hbox to #3bp{#1\nobreak\hspace{2bp}%
+      {\color[HTML]{#4}\leaders\hbox{\WordLatinTimes\fontsize{12bp}{15bp}\selectfont\kern .08em.\kern .08em}\hfill}%
+      \nobreak\hspace{2bp}#2}%
+  }%
+}
+
+\definecolor{WordFooterBlue}{HTML}{4F81BD}
+\newcommand{\WordHeader}{%
+  {\WordLatinZhong\CJKfamily{WordZhong}\fontsize{10.5bp}{12bp}\selectfont
+   华 中 科 技 大 学 计 算 机 科 学 与 技 术 学 院 软 工 项 目 报 告}%
+}
+\newcommand{\WordFooter}[1]{%
+  \makebox[\textwidth]{%
+    {\color{WordFooterBlue}\rule[.6ex]{.45\textwidth}{.5bp}}%
+    \makebox[.10\textwidth][c]{#1}%
+    {\color{WordFooterBlue}\rule[.6ex]{.45\textwidth}{.5bp}}%
+  }%
+}
+\fancypagestyle{wordcover}{%
+  \fancyhf{}\fancyhead[C]{\WordHeader}%
+  \renewcommand{\headrulewidth}{.75bp}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+\fancypagestyle{wordfront}{%
+  \fancyhf{}\fancyhead[C]{\WordHeader}%
+  \fancyfoot[C]{\WordFooter{{\WordLatinTimes\fontsize{9bp}{11bp}\selectfont\Roman{page}}}}%
+  \renewcommand{\headrulewidth}{.75bp}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+\fancypagestyle{wordbody}{%
+  \fancyhf{}\fancyhead[C]{\WordHeader}%
+  \fancyfoot[C]{\WordFooter{{\CJKfamily{WordSong}\fontsize{11bp}{13bp}\selectfont 页码}}}%
+  \renewcommand{\headrulewidth}{.75bp}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+\hypersetup{
+  pdftitle={软件工程项目报告撰写内容及规范化参考样本},
+  pdfsubject={按原始Word直接格式整理的LaTeX版本},
+  pdfauthor={},pdfcreator={XeLaTeX}
+}
+\endinput

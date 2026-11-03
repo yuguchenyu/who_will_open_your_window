@@ -1,0 +1,45 @@
+% 封面：保留原文件的全部填写字段，成员按“学号＋姓名”同排显示。
+\begin{titlepage}
+  \thispagestyle{empty}
+  \linespread{1}\selectfont
+  \centering
+  \vspace*{.6cm}
+  \includegraphics[width=7.355cm]{assets/hust-logo.png}\par
+  \vspace{1.1cm}
+  {\fangsong\bfseries\fontsize{36bp}{44bp}\selectfont 《软件工程》项目报告\par}
+  \vspace{1.5cm}
+  {\heiti\bfseries\zihao{-2}题目：\CoverField[10cm]{\ReportTitle}\par}
+  \vspace{1.5cm}
+
+  {\songti\rmfamily\bfseries\zihao{4}
+  \renewcommand{\arraystretch}{1.55}
+  \begin{tabular}{@{}r@{\quad}l@{}}
+    课程名称： & \CoverField{\CourseName} \\
+    专业班级： & \CoverField{\MajorClass} \\
+    组\qquad 号： & \CoverField{\GroupNumber} \\
+  \end{tabular}\par}
+
+  \vspace{.2cm}
+  {\songti\zihao{5}组号按照检查表中的班级序号填写，例如：CS2404~①。\par}
+  \vspace{.6cm}
+
+  {\songti\rmfamily\bfseries\zihao{4}
+  \noindent 同组成员：\par
+  \vspace{.2cm}
+  \renewcommand{\arraystretch}{1.6}
+  \begin{tabular}{@{}r@{}l@{\qquad}r@{}l@{}}
+    学号： & \CoverField[3.6cm]{\MemberOneID} & 姓名： & \CoverField[3cm]{\MemberOneName} \\
+    学号： & \CoverField[3.6cm]{\MemberTwoID} & 姓名： & \CoverField[3cm]{\MemberTwoName} \\
+    学号： & \CoverField[3.6cm]{\MemberThreeID} & 姓名： & \CoverField[3cm]{\MemberThreeName} \\
+    学号： & \CoverField[3.6cm]{\MemberFourID} & 姓名： & \CoverField[3cm]{\MemberFourName} \\
+  \end{tabular}\par
+  \vspace{.6cm}
+  \begin{tabular}{@{}r@{\quad}l@{}}
+    指导教师： & \CoverField{\Supervisor} \\
+    报告日期： & \CoverField{\ReportDate} \\
+  \end{tabular}\par}
+
+  \vfill
+  {\songti\bfseries\zihao{4}\SchoolName\par}
+  \vspace*{.4cm}
+\end{titlepage}

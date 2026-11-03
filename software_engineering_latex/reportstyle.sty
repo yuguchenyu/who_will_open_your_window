@@ -1,0 +1,201 @@
+% UTF-8。统一维护字体、字号、页边距、标题、目录、图表和页码。
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{reportstyle}[2026/11/03 Software engineering report style]
+
+\RequirePackage{iftex}
+\ifXeTeX\else
+  \PackageError{reportstyle}{Please compile with XeLaTeX}{Select XeLaTeX as the compiler.}
+\fi
+
+\RequirePackage[
+  a4paper,
+  top=2.54cm,bottom=2.54cm,
+  left=3.175cm,right=3.175cm,
+  headheight=14bp,headsep=15.5bp,footskip=22.4bp
+]{geometry}
+\RequirePackage{fontspec}
+\RequirePackage{graphicx}
+\RequirePackage{array}
+\RequirePackage{booktabs}
+\RequirePackage{float}
+\RequirePackage{caption}
+\RequirePackage{fancyhdr}
+\RequirePackage{enumitem}
+\RequirePackage{listings}
+\RequirePackage[titles]{tocloft}
+\RequirePackage[unicode,hidelinks,bookmarksnumbered=true]{hyperref}
+
+% 西文优先使用规范要求的 Times New Roman。
+% 未安装时使用 TeX Live / MiKTeX 常见的 TeX Gyre Termes。
+\IfFontExistsTF{Times New Roman}{
+  \setmainfont{Times New Roman}
+}{
+  \setmainfont[
+    BoldFont=texgyretermes-bold.otf,
+    ItalicFont=texgyretermes-italic.otf,
+    BoldItalicFont=texgyretermes-bolditalic.otf
+  ]{texgyretermes-regular.otf}
+}
+
+% 中文正文字体：有宋体时使用宋体，否则使用 Fandol 宋体。
+\IfFontExistsTF{SimSun}{
+  \setCJKmainfont[AutoFakeBold=2,AutoFakeSlant=.2]{SimSun}
+  \setCJKfamilyfont{zhsong}[AutoFakeBold=2,AutoFakeSlant=.2]{SimSun}
+}{
+  \setCJKmainfont[
+    BoldFont=FandolSong-Bold.otf,
+    ItalicFont=FandolKai-Regular.otf
+  ]{FandolSong-Regular.otf}
+  \setCJKfamilyfont{zhsong}[
+    BoldFont=FandolSong-Bold.otf,
+    ItalicFont=FandolKai-Regular.otf
+  ]{FandolSong-Regular.otf}
+}
+
+% 中文标题字体：有黑体时使用黑体，否则使用 Fandol 黑体。
+\IfFontExistsTF{SimHei}{
+  \setCJKsansfont[AutoFakeBold=2]{SimHei}
+  \setCJKfamilyfont{zhhei}[AutoFakeBold=2]{SimHei}
+}{
+  \setCJKsansfont[BoldFont=FandolHei-Bold.otf]{FandolHei-Regular.otf}
+  \setCJKfamilyfont{zhhei}[BoldFont=FandolHei-Bold.otf]{FandolHei-Regular.otf}
+}
+
+% 封面大标题保留原文件的仿宋风格。
+\IfFontExistsTF{FangSong}{
+  \setCJKfamilyfont{zhfs}[AutoFakeBold=2]{FangSong}
+}{
+  \setCJKfamilyfont{zhfs}[AutoFakeBold=2]{FandolFang-Regular.otf}
+}
+\providecommand{\songti}{\CJKfamily{zhsong}}
+\providecommand{\heiti}{\CJKfamily{zhhei}}
+\providecommand{\fangsong}{\CJKfamily{zhfs}}
+
+% 源文档写“固定1.5倍行距”；其 Word 实际设置是 1.5 倍行距。
+\linespread{1.5}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{1em}
+\raggedbottom
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+
+\ctexset{
+  contentsname={目\quad 录},
+  figurename={图},
+  tablename={表},
+  chapter={
+    name={,},
+    number=\arabic{chapter},
+    format=\centering\rmfamily\heiti\zihao{-2}\bfseries,
+    aftername=\quad,
+    beforeskip=8bp,
+    afterskip=22bp
+  },
+  section={
+    format=\rmfamily\heiti\zihao{4}\bfseries,
+    aftername=\quad,
+    beforeskip=16bp,
+    afterskip=7bp
+  },
+  subsection={
+    format=\rmfamily\heiti\zihao{-4}\bfseries,
+    aftername=\quad,
+    beforeskip=12bp,
+    afterskip=6bp
+  }
+}
+
+% 保留原文件的页眉文字；前置页和正文页采用真实自动页码。
+\newcommand{\ReportPageStyle}{%
+  \fancyhf{}
+  \fancyhead[C]{\songti\rmfamily\zihao{5}华中科技大学计算机科学与技术学院软工项目报告}
+  \fancyfoot[C]{\rmfamily\zihao{5}\thepage}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+\fancypagestyle{reportbody}{\ReportPageStyle}
+\fancypagestyle{plain}{\ReportPageStyle}
+
+% 目录正文小四宋体，章条目加粗，页码和正文标题自动同步。
+\renewcommand{\cftchapfont}{\rmfamily\songti\zihao{-4}\bfseries}
+\renewcommand{\cftchappagefont}{\rmfamily\zihao{-4}\bfseries}
+\renewcommand{\cftsecfont}{\rmfamily\songti\zihao{-4}}
+\renewcommand{\cftsecpagefont}{\rmfamily\zihao{-4}}
+\renewcommand{\cftsubsecfont}{\rmfamily\songti\zihao{-4}}
+\renewcommand{\cftsubsecpagefont}{\rmfamily\zihao{-4}}
+\renewcommand{\cftchapleader}{\cftdotfill{\cftdotsep}}
+\setlength{\cftbeforechapskip}{4bp}
+\setlength{\cftbeforesecskip}{0pt}
+\setlength{\cftbeforesubsecskip}{0pt}
+\setlength{\cftchapnumwidth}{1.8em}
+\setlength{\cftsecindent}{1.8em}
+\setlength{\cftsecnumwidth}{2.7em}
+\setlength{\cftsubsecindent}{4.5em}
+\setlength{\cftsubsecnumwidth}{3.4em}
+
+% 图、表按章编号。表题在上，图题在下。
+\renewcommand{\thefigure}{\thechapter-\arabic{figure}}
+\renewcommand{\thetable}{\thechapter-\arabic{table}}
+\DeclareCaptionFont{reportcaption}{\rmfamily\heiti\zihao{-4}}
+\DeclareCaptionLabelFormat{reportlabel}{#1#2}
+\captionsetup{
+  font=reportcaption,
+  labelformat=reportlabel,
+  labelsep=quad,
+  justification=centering,
+  singlelinecheck=false,
+  skip=7bp
+}
+\captionsetup[table]{position=top}
+\captionsetup[figure]{position=bottom}
+\setlength{\intextsep}{12bp}
+\setlength{\textfloatsep}{15bp}
+
+% 任务书和正文中的条目。
+\setlist[enumerate]{
+  label=\arabic*.,
+  leftmargin=2em,
+  labelsep=.55em,
+  itemsep=4bp,
+  topsep=6bp,
+  parsep=0pt
+}
+
+% 附录代码：按照源文档使用五号宋体及 Times 风格西文。
+% 不使用 minted，因此编译不需要 shell-escape 或额外 Python 工具。
+\lstdefinestyle{reportcode}{
+  basicstyle=\rmfamily\songti\zihao{5},
+  keywordstyle=\bfseries,
+  commentstyle=\normalfont\rmfamily\songti\zihao{5},
+  stringstyle=\normalfont\rmfamily\zihao{5},
+  numbers=none,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=false,
+  tabsize=4,
+  frame=none,
+  aboveskip=8bp,
+  belowskip=8bp
+}
+\lstset{style=reportcode}
+
+\newcommand{\ReportUnnumberedChapter}[1]{%
+  \chapter*{#1}
+  \phantomsection
+  \addcontentsline{toc}{chapter}{#1}
+}
+\newcommand{\CoverField}[2][7.2cm]{%
+  \underline{\makebox[#1][c]{\strut#2}}%
+}
+\AtBeginDocument{\rmfamily\songti\zihao{-4}\selectfont}
+
+\hypersetup{
+  pdftitle={软件工程项目报告},
+  pdfsubject={软件工程项目报告撰写内容及规范化参考样本},
+  pdfauthor={},
+  pdfcreator={XeLaTeX}
+}
+\endinput
