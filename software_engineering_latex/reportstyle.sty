@@ -13,6 +13,7 @@
   left=3.175cm,right=3.175cm,
   headheight=14bp,headsep=15.5bp,footskip=22.4bp
 ]{geometry}
+\RequirePackage{lmodern}
 \RequirePackage{fontspec}
 \RequirePackage{graphicx}
 \RequirePackage{array}
@@ -22,7 +23,14 @@
 \RequirePackage{fancyhdr}
 \RequirePackage{enumitem}
 \RequirePackage{listings}
+\RequirePackage{longtable}
+\RequirePackage{tabularx}
+\RequirePackage{amsmath}
+\RequirePackage{seqsplit}
+\RequirePackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
 \RequirePackage[titles]{tocloft}
+\RequirePackage{xurl}
 \RequirePackage[unicode,hidelinks,bookmarksnumbered=true]{hyperref}
 
 % 西文优先使用规范要求的 Times New Roman。
@@ -31,6 +39,7 @@
   \setmainfont{Times New Roman}
 }{
   \setmainfont[
+    Path=fonts/,
     BoldFont=texgyretermes-bold.otf,
     ItalicFont=texgyretermes-italic.otf,
     BoldItalicFont=texgyretermes-bolditalic.otf
@@ -39,14 +48,18 @@
 
 % 中文正文字体：有宋体时使用宋体，否则使用 Fandol 宋体。
 \IfFontExistsTF{SimSun}{
+  \setCJKmonofont[AutoFakeBold=2]{SimSun}
   \setCJKmainfont[AutoFakeBold=2,AutoFakeSlant=.2]{SimSun}
   \setCJKfamilyfont{zhsong}[AutoFakeBold=2,AutoFakeSlant=.2]{SimSun}
 }{
+  \setCJKmonofont[Path=fonts/,BoldFont=FandolSong-Bold.otf]{FandolSong-Regular.otf}
   \setCJKmainfont[
+    Path=fonts/,
     BoldFont=FandolSong-Bold.otf,
     ItalicFont=FandolKai-Regular.otf
   ]{FandolSong-Regular.otf}
   \setCJKfamilyfont{zhsong}[
+    Path=fonts/,
     BoldFont=FandolSong-Bold.otf,
     ItalicFont=FandolKai-Regular.otf
   ]{FandolSong-Regular.otf}
@@ -57,15 +70,15 @@
   \setCJKsansfont[AutoFakeBold=2]{SimHei}
   \setCJKfamilyfont{zhhei}[AutoFakeBold=2]{SimHei}
 }{
-  \setCJKsansfont[BoldFont=FandolHei-Bold.otf]{FandolHei-Regular.otf}
-  \setCJKfamilyfont{zhhei}[BoldFont=FandolHei-Bold.otf]{FandolHei-Regular.otf}
+  \setCJKsansfont[Path=fonts/,BoldFont=FandolHei-Bold.otf]{FandolHei-Regular.otf}
+  \setCJKfamilyfont{zhhei}[Path=fonts/,BoldFont=FandolHei-Bold.otf]{FandolHei-Regular.otf}
 }
 
 % 封面大标题保留原文件的仿宋风格。
 \IfFontExistsTF{FangSong}{
   \setCJKfamilyfont{zhfs}[AutoFakeBold=2]{FangSong}
 }{
-  \setCJKfamilyfont{zhfs}[AutoFakeBold=2]{FandolFang-Regular.otf}
+  \setCJKfamilyfont{zhfs}[Path=fonts/,AutoFakeBold=2]{FandolFang-Regular.otf}
 }
 \providecommand{\songti}{\CJKfamily{zhsong}}
 \providecommand{\heiti}{\CJKfamily{zhhei}}
@@ -76,6 +89,8 @@
 \setlength{\parindent}{2em}
 \setlength{\parskip}{0pt}
 \setlength{\emergencystretch}{1em}
+\setlength{\tabcolsep}{4pt}
+\AtBeginEnvironment{longtable}{\zihao{5}\linespread{1.15}\selectfont}
 \raggedbottom
 \setcounter{secnumdepth}{2}
 \setcounter{tocdepth}{2}
@@ -181,6 +196,10 @@
   belowskip=8bp
 }
 \lstset{style=reportcode}
+
+% Narrow table columns must not force long API and function names into margins.
+\let\ReportOriginalTexttt\texttt
+\renewcommand{\texttt}[1]{\ReportOriginalTexttt{\seqsplit{#1}}}
 
 \newcommand{\ReportUnnumberedChapter}[1]{%
   \chapter*{#1}

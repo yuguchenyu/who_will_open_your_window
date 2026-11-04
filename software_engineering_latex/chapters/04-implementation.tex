@@ -2,24 +2,263 @@
 \label{chap:implementation}
 
 \section{实现环境与代码管理}
-这部分可首先叙述所设计软件实现的软硬件环境，代码版本管理的签入记录需截图进行说明。例如使用码云平台签入记录截图如图\ref{fig:gitee-example}所示（也可使用其他工具）：
+\subsection{技术栈与验证基线}
+系统采用浏览器原生 DOM、事件与 Fetch API 实现前端，后端采用 Node.js 24 的 ES Modules、内置 HTTP、Crypto、SQLite、文件及压缩模块；页面由 HTML5 与 CSS3 组织，数据库使用参数化 SQL，Windows 启动与监控使用 PowerShell/CMD。\texttt{package.json} 未声明第三方应用运行依赖，业务测试采用 Node.js 内置 \texttt{node:test} 与 \texttt{node:assert/strict}。浏览器测试另外需要测试工具和 Chrome，不能将“应用无需第三方 npm 依赖”理解成所有测试工具均内置。
+
+本章依据第\ref{chap:requirements}章的 FR-01 至 FR-15、当前源码、\texttt{VERIFICATION.md}及归档证据编写。2026 年 11 月 4 日 Windows、Node.js v24.13.0 的\texttt{npm test}实测结果为：\textbf{120 项通过、0 项失败，总耗时 3049.829 ms}，即约 3.050 秒；原始输出归档于\texttt{assets/report/regression.txt}，取消、跳过及待办均为零。该数字是整套自动化回归的运行总耗时，不是单次接口响应时间，也不是模型推理时间。本轮另完成五张隔离场景截图的生成与图像检查，未重新执行接口性能测量或完整浏览器回归，两者不能由截图成功替代。
+
+\begin{table}[H]
+  \centering
+  \caption{验证证据的日期、环境与使用范围}
+  \label{tab:implementation-baselines}
+  {\songti\rmfamily\zihao{5}
+  \begin{tabular}{@{}p{.16\textwidth}p{.26\textwidth}p{.48\textwidth}@{}}
+    \toprule
+    日期 & 环境或来源 & 可据此说明的结果及边界 \\
+    \midrule
+    2026-11-04 & Windows；Node.js v24.13.0；归档回归输出 & 120 项回归通过、0 失败、3049.829 ms；行数见\texttt{source-count.txt}。 \\
+    2026-11-04 & 五张隔离场景截图 & 登录、遇见、纸条、对话、媒体截图生成和图像检查通过；不代表完整浏览器交互回归通过。 \\
+    2026-10-31 & Core Ultra 7 155H；WSL2 Linux 6.6.87.2；Node.js v24.21.0 & 历史 120 项通过、2884.823328 ms；非功能检查 19 项通过，16 组本地接口测量。不能换用 Windows 环境标签。 \\
+    2026-10-03 & \texttt{VERIFICATION.md} 中 Chrome 记录 & 对应版本的手机与桌面布局、开窗入场、抽取与收藏检查；不是当前全部页面的视觉验收。 \\
+    2026-10-12 & 历史情绪立绘记录 & 当时 103 项回归及上传、回退浏览器检查；当时词语规则选择情绪，不代表当前模型分析实现。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\subsection{源码组织与版本管理}
+\texttt{server.mjs} 负责配置、HTTP 路由、鉴权和模型适配；\texttt{lib/} 负责认证、状态、匹配、抽取、真人通信、媒体、生图与参考分。\texttt{public/app.mjs} 负责页面与交互编排，\texttt{public/core.mjs} 提供虚拟业务状态规则，其他前端模块分别封装 API、登录、入场、立绘与风格。\texttt{tests/} 存放自动化业务测试和独立浏览器脚本，\texttt{scripts/} 存放非功能展示、夹具及源码统计工具。原有根目录 \texttt{index.html} 未被当前服务使用，不计入应用规模。
+
+仓库使用 Git 管理。2026 年 11 月 4 日查询的 HEAD 为\texttt{9d18f30668073a988bf5e1181b8c288e370faddf}，工作区含已有修改及未跟踪文件，因此该提交标识不能代表当前受测工作区的全部内容。\texttt{VERIFICATION.md} 记录 2026 年 10 月 31 日测量基于提交 \texttt{e6dca14} 的工作区修改，结果中也记录了工作区非干净状态。表\ref{tab:implementation-git-history}按\texttt{git log -5}实际输出列出最近五条记录，日期使用提交作者日期，时区均为 UTC+8；标题和作者保留原值，不从标题推断测试通过、部署完成或个人贡献比例。
+
+\begin{table}[H]
+  \centering
+  \caption{2026-11-04 查询的最近五条真实 Git 记录}
+  \label{tab:implementation-git-history}
+  {\songti\rmfamily\zihao{5}
+  \begin{tabular}{@{}p{.12\textwidth}p{.20\textwidth}p{.20\textwidth}p{.38\textwidth}@{}}
+    \toprule
+    提交 & 作者日期（UTC+8） & 作者 & 原始提交标题 \\
+    \midrule
+    \texttt{9d18f30} & 2026-11-02 16:26:00 & \texttt{Soyo\_Nagasaki} & ui: refine chat typography and emotion badge \\
+    \texttt{e6dca14} & 2026-10-31 16:08:01 & \texttt{Soyo\_Nagasaki} & Merge remote-tracking branch 'origin/main' \\
+    \texttt{9ec3d04} & 2026-10-28 15:18:17 & \texttt{cloud107} & longlong \\
+    \texttt{c4ae880} & 2026-10-26 20:11:39 & \texttt{Soyo\_Nagasaki} & fix: make emotion predictions readable on light dialogue background \\
+    \texttt{ffbee3d} & 2026-10-26 20:04:49 & \texttt{Soyo\_Nagasaki} & ui: display AI predicted partner emotion in conversation \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\subsection{本轮代码规模}
+2026 年 11 月 4 日源码统计输出归档于\texttt{assets/report/source-count.txt}，表\ref{tab:implementation-source-count}与其中的逐文件及分类合计一致。\texttt{scripts/count-source.mjs}逐文件统一换行、去除结尾分隔产生的空项，分别统计物理行与非空行。主体业务 JavaScript 为 22 个文件、6220 行；含 CSS/HTML 的应用源码为 27 个文件、10838 行。测试代码的 22 个文件包括浏览器脚本，并非 22 个 \texttt{*.test.mjs} 文件。
+
+\begin{table}[H]
+  \centering
+  \caption{2026-11-04 当前源码统计}
+  \label{tab:implementation-source-count}
+  {\songti\rmfamily\zihao{5}
+  \begin{tabular}{@{}p{.48\textwidth}rrr@{}}
+    \toprule
+    分类 & 文件数 & 物理行数 & 非空行数 \\
+    \midrule
+    后端业务 JavaScript & 15 & 3159 & 2902 \\
+    前端业务 JavaScript & 7 & 3061 & 2934 \\
+    主体业务 JavaScript 合计 & 22 & 6220 & 5836 \\
+    页面样式 CSS & 3 & 4614 & 4603 \\
+    页面结构 HTML & 2 & 4 & 4 \\
+    应用源码合计 & 27 & 10838 & 10443 \\
+    测试代码（单列） & 22 & 1960 & 1847 \\
+    展示与统计工具（单列） & 3 & 459 & 454 \\
+    启动与监控脚本（单列） & 5 & 118 & 118 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+行数包含注释，非空行也不等于去注释后的有效代码行；图片、依赖、运行数据和文档不计入。2026 年 10 月 31 日历史统计中的前端 3079 行、CSS 4570 行、测试 1944 行只属于当时工作区，不与本轮统计混用。物理行数用于说明代码构成与复核范围，不能替代工时或个人贡献证据。
+
+\section{关键函数说明}
+\subsection{HTTP 边界与账号隔离}
+\texttt{readConfig()} 读取服务端配置，\texttt{createServer()} 创建服务、注入数据库和上游请求函数。\texttt{readJson()} 校验 JSON 与请求大小；普通请求最多 64000 字节，媒体路由另设 4200000 字节请求体上限，用来容纳 Base64 包装，并非图片本身的保存上限。静态资源采用限定路径，业务请求执行 Host/Origin 检查和 TCP 对端 IP 策略。除状态、注册、登录外，API 先解析会话，再执行账号所属业务。
+
+\texttt{register()} 在事务内创建账号、初始收藏、虚拟状态和会话。\texttt{hashPassword()} 使用独立随机盐及 scrypt，\texttt{verifyPassword()} 在长度一致后使用恒定时间比较；\texttt{hashToken()} 只把令牌 SHA-256 摘要存入数据库。\texttt{login()} 将旧会话置为失效并记录替换设备，再插入唯一有效会话；\texttt{resolveSession()} 区分缺失、到期和被替换。会话固定三十天到期，不因访问滑动续期。认证入口组合账号/IP 与 IP 总计两级失败计数，十五分钟窗口分别以十次、三十次为阈值。Cookie 使用 HttpOnly 与 SameSite=Strict；当前 HTTP 演示不具备传输加密及 Secure 标记。
+
+\texttt{openDatabase()} 启用 WAL、外键、表结构与迁移；当前包含 18 张表，含兼容保留表与迁移记录。真人纸条、会话、消息等采用关系表，虚拟状态按账号保存 JSON，媒体和预览使用 BLOB。\texttt{readState()} 校验持久化结构，\texttt{writeState()} 将资料与互动分别写入相应存储。\texttt{runAction()} 只接受自有白名单动作，拒绝原型链名称与外部 \texttt{finishReply} 调用；从库读取当前状态、执行规则后才写回，客户端提交的整份状态不能覆盖数据库。
+
+\subsection{匹配、抽取与收藏}
+\texttt{saveMatchingProfile()}仅保存两段介绍，并在更新时清空旧标签、置为待分析；函数参数和SQL均不持久化同意状态。展示同意由注册/资料路由检查请求字段，不构成可查询、可撤回的持久授权记录。\texttt{matchingMessages()}仅构造提取标签所需文本，\texttt{parseTags()}限定固定词表和数量范围。\texttt{storeTags()}将资料标为就绪；异步返回前仅比较当前两段介绍与请求前快照，文字已变则不写回，不应将该文字比较描述为授权版本校验。失败保留介绍，可经重试入口继续提取。
+
+\texttt{matchScore()} 分别计算本人期望被对方满足、对方期望被本人满足的标签比例；任一方向无交集则返回零，否则平均并取整数百分数。\texttt{candidates()} 只允许至少六十分的候选，排除本人、收藏、冷却、已有真人会话或待回应纸条，真人还须开放接收。输出删除对方期望标签和私有人物设定。\texttt{draw()} 在立即写事务中先复用待决定结果，再按分数累计票区间加权选择并持久化快照，\texttt{drawState()} 返回收藏及禁用原因。\texttt{decide()} 校验账号归属并幂等处理喜欢/跳过，\texttt{remove()} 移除后写入三十天冷却，不删除交流历史。
+
+当前每日抽取不限次数，但未决定结果不能绕过，收藏上限仍为五位。\texttt{seedLegacyCollection()} 首次加入小夏、阿屿、小宁，占三个位置并写入初始化标记；移除不会补回，初始卡片没有虚构契合分。抽取记录日期按 UTC+8，真人纸条额度按服务端本地自然日，虚拟演示使用模拟日期偏移，三种日期不得互相替代。
+
+\subsection{真人通信与虚拟状态机}
+真人投递链路为 \texttt{/api/real/note} 调用 \texttt{sendRealNote()}，校验收藏关系、接收开关、每日两张额度和双方无待回应纸条。\texttt{respondRealNote()} 限收件人处理：拒绝只更新状态；接受须有一至一百字符回信，并在同一事务中更新纸条、创建会话、写入原纸条及首封回信。\texttt{sendRealMessage()} 先由 \texttt{conversation()} 校验参与者，再写入一至五百字符消息，发送者始终取当前会话账号。\texttt{realSnapshot()} 默认返回最近五十条消息，页面约每两秒轮询、隐藏时暂停，不是 WebSocket 推送或无限历史翻页。
+
+虚拟互动由 \texttt{public/core.mjs} 中 \texttt{sendNote()}、\texttt{startNoteReply()}、\texttt{incomingAction()}、\texttt{sendMessage()} 和 \texttt{finishReply()} 推进。第一次提交先记录用户文本及待回复任务，\texttt{/api/reply} 才请求模型；失败保留任务，再试只补回复，不再次写用户消息。已有待回复任务时拒绝继续发送。来信暂存、归档、屏蔽属于虚拟规则，不延伸成真人功能。
+
+\texttt{recordFeeling()} 保存私人分数与备注，不改变意愿或授权；\texttt{review()}、\texttt{confirmationReason()}、\texttt{confirmHeart()} 检查双向交流、本人当期积极意愿、双方当期授权与周期机会。每七天周期对整个账号只有一次确认机会，资格不符不消耗，跨期重新授权。\texttt{blockPerson()} 撤回相关授权并停止互动。Demo 的 \texttt{injectNote}、\texttt{saveScenario}、\texttt{advance}、\texttt{reset} 通过动作层执行，周期以服务端状态计算，日期仅允许非负整数且累计不超过 3650 天。\texttt{reset}以\texttt{freshState()}重建虚拟互动状态，并将展示名、习惯、话题及偏好恢复为当前账号默认资料；\texttt{writeState()}仅更新该账号的users资料字段和states记录。账号身份、真人纸条/会话/消息、收藏与抽取记录、匹配资料及媒体均保留，不是“清空全部互动”。页面二次确认属于源码可见的交互，完整浏览器复测仍待执行。
+
+\subsection{模型适配与异步界面}
+\texttt{completion()} 使用兼容 Chat Completions 的接口、服务端密钥及默认三十五秒取消机制。\texttt{makeMessages()} 白名单构造上下文，不发送心笺备注、意愿授权和模型凭据。\texttt{parseSuggestions()}、\texttt{parseGuidance()} 检查建议数量、解释权重及情绪结构；\texttt{replyStyleOf()} 严格限定自然日常、轻松幽默、温柔关心、直接简短四种风格。风格只改变用户建议表达，不让虚拟对方模仿用户选中的风格。
+
+前端 \texttt{generateGuidance()} 记录最新对方消息编号和请求风格，返回时比对当前消息；消息一致才接纳情绪，风格也一致才接纳建议，变化后可补发分析。\texttt{portraitEmotion()} 要求已知标签、整数置信度且至少七十，\texttt{portraitSelection()} 再检查资源版本；低置信度、难以判断、缺图或失败回退默认，默认缺失显示问号人。不采用早期关键词猜测当前真人情绪。建议点击只填草稿，\texttt{sendRealChat()} 的手动发言与分析独立；\texttt{stashDrafts()} 和 \texttt{restoreDrafts()} 尽力处理会话失效后的草稿恢复，但浏览器存储不可用时不保证恢复。
+
+文本模型的共享在途上限为四次，仅模型业务占用，普通资料保存、真人手动消息不借用这一额度。普通错误返回状态码与 \texttt{\{error, code\}}；上游鉴权、限流、网络、超时或格式异常转为中文脱敏错误，不把内部正文或密钥返回前端。
+
+\subsection{媒体、生图与交流参考}
+\texttt{validateMedia()} 校验 PNG/JPEG/WebP 文件签名与字节数；头像和立绘各最多 2000000 字节，背景最多 3000000 字节。\texttt{saveMedia()}、\texttt{deleteMedia()}、\texttt{mediaStatus()} 按账号、用途及情绪槽位管理版本。头像只用于资料/纸条，立绘用于舞台，背景用于本人场景；旧头像迁移不会默认为新聊天立绘。普通上传不调用模型。
+
+\texttt{createPortraitGeneration()} 暴露 \texttt{start/state/image/apply/discard}。\texttt{start()} 检查明确外发同意、本人默认立绘、请求编号幂等、每账号一个运行任务或预览、全局两次并发，以及滚动二十四小时十二次额度（失败计次），返回 202 后后台请求图片编辑。\texttt{prepareGeneratedPortrait()} 解码 PNG 并检查实际 Alpha、损坏、空白及大小，不能只信服务声称透明。成功只进入私有 \texttt{ready} 预览，\texttt{apply()} 再检查参考图摘要和目标情绪版本，以事务保存，防止旧图覆盖新上传。默认超时一百八十秒、不自动重试；重启遗留运行任务失败，非运行记录及预览七天过期。该技术校验不证明人物身份、构图及艺术质量正确，仍须人工确认。
+
+FR-15 使用 \texttt{calculateReplySpeed()}、\texttt{calculateContinuity()}、\texttt{calculateWordRatio()} 与可选 \texttt{parseFavorabilityLlm()}，经 \texttt{composeFavorabilityScore()} 组合。模型有效时四项各占 25\%，否则三项占 35\%、35\%、30\%。读取接口按当前双方开关限制可见性；主动分析路由仅在请求模型前核对参与者和双方开关。\texttt{await completion()}返回后没有重新读取开关，仍写缓存并返回\texttt{canView:true}。因此任一方在请求在途时关闭功能，已发往上游的内容不会撤回，旧分析还可能保存并随原请求返回；后续读取隐藏不能弥补本次返回的缺口。此为源码核查发现的在途撤回缺口，未由现有顺序切换测试验证或修复。缓存保存请求快照的末条消息编号与分析时间；主动分析读取会话历史，与聊天快照最近五十条不同。参考分不是虚拟私人分数或七天揭晓授权，也不能证明真人好感。
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=.90\textwidth]{assets/gitee-example.png}
-  \caption{码云平台代码签入示例}
-  \label{fig:gitee-example}
+  \fbox{\parbox{.9\textwidth}{\songti\rmfamily\zihao{5}
+    浏览器事件 $\rightarrow$ API 封装 $\rightarrow$ HTTP 校验/会话解析\\
+    抽取路由 $\rightarrow$ 匹配候选/事务 $\rightarrow$ SQLite $\rightarrow$ 收藏视图\\
+    真人路由 $\rightarrow$ 收件人/参与者校验 $\rightarrow$ 纸条与消息表 $\rightarrow$ 轮询\\
+    虚拟动作 $\rightarrow$ 当前状态/规则 $\rightarrow$ 待回复落库 $\rightarrow$ 模型回复补写\\
+    表达分析 $\rightarrow$ 模型输出校验 $\rightarrow$ 消息/风格核对 $\rightarrow$ 建议与情绪回退\\
+    授权生图 $\rightarrow$ 本人参考图/后台任务 $\rightarrow$ 私有预览 $\rightarrow$ 版本校验保存}}
+  \caption{主要实现调用链（文字框为调用关系，不是运行截图）}
+  \label{fig:implementation-call-chain}
 \end{figure}
 
-\section{关键函数说明}
-程序代码部分在这里不需要给出来，只需要叙述清楚在系统中包括哪些函数，各函数的说明，如何利用这些函数实现系统各模块的功能，以及函数间的调用关系（可用图表示出来）。程序详见附录。
-
 \section{测试计划和测试用例}
-首先叙述一下常用的软件测试方法，再选择几个主要的功能模块（自行掌握数量，关键要体现你的水平的一些模块）描述测试过程：
-\begin{enumerate}[label=（\arabic*）]
-  \item 先明确模块的功能、设计目标等。
-  \item 分析、叙述如何选取测试数据，要求有完整的测试计划和测试用例，说明测试运行结果（这时可用截图）。
+\subsection{方法、夹具与执行层次}
+测试以风险为导向：账号与会话检验安全边界，抽取与收藏检验容量、幂等和时钟边界，真人通信检验角色与事务，虚拟状态机检验失败恢复与授权，媒体/生图检验字节内容、归属和版本竞争。黑盒方法使用合法与非法输入等价类、长度/分数/时刻边界值和角色决策表；白盒检查动作分支、回滚及解析校验；状态迁移测试覆盖待决定、待回复、预览和授权周期。HTTP 集成测试补充路由、Cookie、越权与上游错误，浏览器脚本另检验草稿、焦点、呈现和视口。
+
+\begin{enumerate}
+  \item 单元层：用内存数据库、固定时间与可注入随机票号隔离规则，断言返回值、状态和数据库记录，而不只断言“不抛异常”。
+  \item HTTP 集成层：创建独立测试服务/账号并注入 \texttt{fetchImpl} 与超时；使用模拟上游验证结构、鉴权和恢复，不依赖真实模型服务的随机输出。
+  \item 回归层：\texttt{npm test} 仅执行 \texttt{tests/*.test.mjs}；不同测试文件中一个测试可含多个断言，120 是框架汇总项数，不是需求数或断言总数。
+  \item 非功能层：独立夹具、SQLite 文件和客户端/服务端不同进程；覆盖安全、错误、健壮性及独立性能批次，输出环境、版本、数据量与结构化结果。
+  \item 浏览器与人工层：本轮五张隔离场景截图生成和图像检查通过；完整浏览器脚本覆盖的登录、真人、抽取、风格、媒体及生图交互未整套重跑，真实模型质量仍需另行验证。
 \end{enumerate}
 
+各用例先准备自己的账号和数据，再触发正常或异常分支，最后验证持久化与副作用；不得读取日常密钥或把模拟结果写入日常数据库。IT-01至IT-15为报告整理场景，不与120项机械对应。各例分别标记“已有断言”“源码”“待测”：已有断言只说明实际测试中可定位的断言范围；源码表示静态核查行为，不等于运行通过；待测表示未有相应执行证据或覆盖仍不足。120项通过仅证明归档运行的现有断言未失败，不能给每个IT整体盖章，更不能证明表内全部操作组合已通过。
+
+\subsection{本轮截图检查与交互边界}
+2026 年 11 月 4 日的\texttt{login.png}、\texttt{meet.png}、\texttt{notes.png}、\texttt{chat.png}和\texttt{media.png}均存于\texttt{assets/report/}，经PNG文件头核对，原图尺寸均为1440$\times$1000像素。五张图来自隔离场景，已完成生成及逐张图像检查；图像尺寸不等于已经测试所有移动端和桌面端视口。具体页面状态和截图证据索引见附录表\ref{tab:appendix-screenshots}。
+
+截图可确认登录表单、遇见空池提示、真人与虚拟纸条分区、对话建议与情绪标识、媒体设置弹窗等可见内容。对话中的消息、情绪及交流参考值仅是隔离场景的显示数据，不能据此证明真实模型判断或真实用户心理。静态图不验证建议点击后只填草稿、风格与消息竞态、轮询同步、会话失效后恢复、重置二次确认及生图预览保存。上述动态行为仍须相应浏览器脚本及断言日志，不能以五张截图生成通过写成“完整浏览器回归通过”。
+
+\subsection{身份、相遇与通信场景}
+\begingroup
+  \renewcommand{\arraystretch}{1.15}
+  \begin{longtable}{@{}p{.10\textwidth}p{.37\textwidth}p{.43\textwidth}@{}}
+  \caption{核心业务代表性测试用例}\label{tab:implementation-cases-core}\\
+    \toprule
+    编号 & 数据与操作 & 证据分层与检查点 \\
+    \midrule\endfirsthead
+    \toprule 编号 & 数据与操作 & 证据分层与检查点（续） \\
+    \midrule\endhead
+    \bottomrule\endfoot
+    IT-01 & 注册合法账号；重复大小写用户名；两次登录；到期/退出后请求。 & 已有断言：重名、注册回滚、摘要、会话替换及到期/退出。源码：Cookie与固定期限。待测：当前浏览器双设备提示与草稿恢复。 \\
+    IT-02 & 合法/非法标签；提取失败、重试；资料变更。 & 已有断言：双向评分、词表校验、失败保留介绍与重试脱敏。源码：不存同意、仅比较介绍后写标签。待测：在途资料变更及授权生命周期，不能认定持久授权已实现。 \\
+    IT-03 & 零点与档位边界；固定票号；重复/并发抽取。 & 已有断言：日期、档位、票区间、同日继续、跨日复用与八并发复用；历史展示另有五并发。源码：事务写快照。待测：当前动画、刷新及多视口交互。 \\
+    IT-04 & 五位满员；重复喜欢；29/30天冷却；移除。 & 已有断言：容量、幂等、冷却端点、初始人物不补回及移除后继续聊天。源码：移除不删除历史。待测：当前页面刷新、移除与历史显示组合。 \\
+    IT-05 & 真人投递资格、接收开关、重复投递；接受/拒绝。 & 已有断言：未收藏拒绝、重复拒绝、非收件人拒绝及接受后首轮消息；关闭接收有候选排除断言。源码：每日额度、接受事务、拒绝不建会话。待测：投递时关闭、日额度端点、拒绝及事务故障回滚。 \\
+    IT-06 & 双方消息；第三方读写；模型不可用时手动发言。 & 已有断言：双方发送、时间字段与越权写入；账号隔离有相关断言。源码：sender取登录账号，真人消息不调用模型。待测：真人模型故障下手动发送、轮询与隐藏页恢复组合。 \\
+    IT-07 & 虚拟回复失败/重试；等待期间再次发送。 & 已有断言：用户消息不重复、待回复时拒绝、内部完成幂等及模拟故障响应；历史展示验证失败重试。源码：失败保留任务。待测：当前浏览器失败、重登、重试的组合流程。 \\
+  \end{longtable}
+\endgroup
+
+\subsection{分析、媒体与授权场景}
+\begingroup
+  \renewcommand{\arraystretch}{1.15}
+  \begin{longtable}{@{}p{.10\textwidth}p{.37\textwidth}p{.43\textwidth}@{}}
+  \caption{辅助功能代表性测试用例}\label{tab:implementation-cases-assistance}\\
+    \toprule
+    编号 & 数据与操作 & 证据分层与检查点 \\
+    \midrule\endfirsthead
+    \toprule 编号 & 数据与操作 & 证据分层与检查点（续） \\
+    \midrule\endhead
+    \bottomrule\endfoot
+    IT-08 & 三项建议、错误JSON；合法/非法风格；消息/风格变化。 & 已有断言：建议结构、风格白名单与提示约束。源码：消息/风格过滤旧结果、建议只填草稿。待测：当前竞态、草稿保留和明确发送交互。 \\
+    IT-09 & 情绪、69/70阈值、非整数/未知标签；缺图。 & 已有断言：情绪解析、阈值与资源回退。源码：消息绑定和默认缺失显示问号人。待测：当前消息竞态、分析失败及动态换图；截图仅确认可见标识。 \\
+    IT-10 & 图片签名、大小、归属；头像/立绘替换删除。 & 已有断言：格式/大小拒绝、账号隔离、版本与资源分离。源码：按用途/情绪管理。待测：当前弹窗多视口、上传刷新和操作组合。 \\
+    IT-11 & 无同意/参考；重发；预览归属；版本更新；超时。 & 已有断言：无同意不调用、幂等、私有预览、确认保存、旧图拒绝及失败不覆盖。源码：后台生命周期。待测：当前授权/预览/保存界面与真实图片质量。 \\
+    IT-12 & 分数边界；撤回、跨期授权；重复揭晓及屏蔽。 & 已有断言：分数与授权分离、非法分、当期资格、一次机会及屏蔽。源码：账号级周期规则。待测：当前跨期显示、撤回和揭晓交互组合。 \\
+    IT-13 & 注入、周期、非法推进；reset；外部finishReply。 & 已有断言：非法动作、服务端周期、虚拟重置、账号存续及重置后收藏仍在。源码：只重建虚拟状态/默认资料，保留真人与媒体。待测：真人/媒体完整保留断言、二次确认及在途请求与重置竞态。 \\
+    IT-14 & 保存个人偏好；夹带整份状态；越界字段。 & 已有断言：资料写users、整份状态拒绝、账号隔离及旧页不回滚。源码：逐项构建与长度限制。待测：所有资料字段边界及当前浏览器保存恢复组合。 \\
+    IT-15 & 指标/权重；模型成功/失败；顺序开关及在途关闭。 & 已有断言：指标、组合权重、顺序开关隐藏及模拟模型成功。源码：失败降级、缓存字段、请求前开关检查；返回后不复查。待测：在途关闭与故障降级端到端，不能宣称撤回保护完整。 \\
+  \end{longtable}
+\endgroup
+
+生图测试特别区分“请求被接受”“生成 ready”“确认 saved”三阶段：就绪时目标槽仍不存在，用户确认才写入，随后预览字节清空；重复确认可安全返回。抽取测试采用固定票号验证区间端点，而不要求短序列随机抽样频率恰好等于理论概率。授权测试同时验证拒绝响应与机会计数不变，以避免仅提示失败却悄悄扣次数。
+
+\subsection{FR-01 至 FR-15 追踪矩阵}
+表\ref{tab:implementation-trace-core}与表\ref{tab:implementation-trace-assistance}连接需求、真实函数、用例及测试文件。测试文件均位于 \texttt{tests/}；表中省略共同目录。矩阵证明已有检查入口可定位，不表示所有需求的 UI、真实上游、并发规模与安全边界均已充分验证，也不计算没有逐项验收证据的“需求覆盖率100\%”。
+
+\begin{table}[H]
+  \centering
+  \caption{核心需求的实现与测试追踪}
+  \label{tab:implementation-trace-core}
+  {\songti\rmfamily\zihao{5}
+  \begin{tabular}{@{}p{.11\textwidth}p{.36\textwidth}p{.09\textwidth}p{.34\textwidth}@{}}
+    \toprule
+    需求 & 实现函数/模块 & 用例 & 自动化依据 \\
+    \midrule
+    FR-01 & auth：register、login、resolveSession & IT-01 & \texttt{auth.test.mjs}；\texttt{db.test.mjs}；\texttt{server.test.mjs} \\
+    FR-02 & matching：parseTags、storeTags、matchScore & IT-02 & \texttt{matching.test.mjs} \\
+    FR-03 & draw：candidates、draw、drawState & IT-03 & \texttt{draw.test.mjs} \\
+    FR-04 & draw：decide、remove、seedLegacyCollection & IT-04 & \texttt{draw.test.mjs} \\
+    FR-05 & real-chat：sendRealNote、respondRealNote & IT-05 & \texttt{real-chat.test.mjs} \\
+    FR-06 & real-chat：conversation、sendRealMessage & IT-06 & \texttt{real-chat.test.mjs}；\texttt{server.test.mjs} \\
+    FR-07 & core/actions：sendMessage、finishReply & IT-07 & \texttt{core.test.mjs}；\texttt{actions.test.mjs}；\texttt{server.test.mjs} \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{辅助需求的实现与测试追踪}
+  \label{tab:implementation-trace-assistance}
+  {\songti\rmfamily\zihao{5}
+  \begin{tabular}{@{}p{.11\textwidth}p{.34\textwidth}p{.09\textwidth}p{.36\textwidth}@{}}
+    \toprule
+    需求 & 实现函数/模块 & 用例 & 自动化依据 \\
+    \midrule
+    FR-08 & server/reply-style/app：parseGuidance、generateGuidance & IT-08 & \texttt{server.test.mjs}；\texttt{reply-style.test.mjs} \\
+    FR-09 & portraits/server：portraitEmotion、portraitSelection & IT-09 & \texttt{portrait-emotion.test.mjs}；\texttt{media.test.mjs} \\
+    FR-10 & media：validateMedia、saveMedia、deleteMedia & IT-10 & \texttt{media.test.mjs}；\texttt{media-separation.test.mjs} \\
+    FR-11 & portrait-generation/portrait-png：start、apply、prepareGeneratedPortrait & IT-11 & \texttt{portrait-generation.test.mjs}；\texttt{media-separation.test.mjs} \\
+    FR-12 & core：recordFeeling、review、confirmHeart、blockPerson & IT-12 & \texttt{core.test.mjs}；\texttt{server.test.mjs}（上游隐私载荷） \\
+    FR-13 & actions/core/app：runAction、injectNote、reset & IT-13 & \texttt{actions.test.mjs}；\texttt{core.test.mjs} \\
+    FR-14 & actions/state：saveProfile、writeState & IT-14 & \texttt{actions.test.mjs}；\texttt{state.test.mjs}；\texttt{server.test.mjs} \\
+    FR-15 & favorability/server：composeFavorabilityScore、getConversationFavorability & IT-15 & \texttt{favorability.test.mjs} \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\subsection{非功能检查与历史性能}
+2026 年 10 月 31 日非功能展示有安全5项、错误8项、健壮性6项，共19项通过，另外16组性能测量；这两类数量不计入本轮120项回归。安全项覆盖未登录、第三方越权、跨站/私有文件、摘要/Cookie/CSP及两级限流；错误项覆盖非法JSON/超限输入、非法图片及六类上游失败；健壮性项覆盖模型满载时普通动作、重试无重复、并发抽取、非法动作不写回、生图并发/失败及重启持久化。
+
+历史性能以100或1000条初始消息、并发1或10组合，每组预热20次后重建同规模数据，正式100次，四类接口共1600次正式请求、无失败。耗时含本地HTTP往返和完整响应体读取，分位数只统计成功请求，吞吐为成功数除以墙钟时间；不包含准备和预热。完整16组数值见附录表\ref{tab:appendix-performance-one}与表\ref{tab:appendix-performance-ten}，本章只摘录关键组合。
+
+\begin{table}[H]
+  \centering
+  \caption{2026-10-31 历史性能摘录：1000条初始消息、并发10}
+  \label{tab:implementation-performance-history}
+  {\songti\rmfamily\zihao{5}
+  \begin{tabular}{@{}lrrrr@{}}
+    \toprule
+    接口 & 平均/ms & P50/ms & P95/ms & 成功请求/秒 \\
+    \midrule
+    状态查询 & 2.33 & 2.09 & 4.34 & 4160.91 \\
+    账号快照 & 31.45 & 27.21 & 57.56 & 302.86 \\
+    真人消息读取 & 43.39 & 36.53 & 77.90 & 219.30 \\
+    真人消息发送 & 111.58 & 92.20 & 201.49 & 85.55 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+历史结果显示在所测规模内100条增至1000条没有明显响应恶化，与聊天近期消息限量与索引一致，但未测更大规模或公网容量。写入还涉及持久化和最新快照构造，耗时高于状态查询。同步 SQLite 与 scrypt 可能阻塞更高负载的事件循环；主动参考分计算还读取会话历史，因此不能从聊天快照测量推导全部分析路径恒定复杂度。本轮没有真实文本推理或图片生成速度数据，也没有把 WSL2 的低延迟移作 Windows 的最新结果。
+
 \section{结果分析}
-根据测试分析运行结果、确认软件是否满足需求。
+2026 年 11 月 4 日 Windows/Node.js v24.13.0 归档回归120项通过、0失败，仅证明此次运行的现有断言未失败，不证明IT-01至IT-15全部场景、操作组合或FR-01至FR-15完整验收通过。矩阵用于定位相关实现与断言，源码核查和待测范围须按每例分层读取。尤其匹配资料未持久化同意，真人参考分存在在途关闭后仍保存/返回分析的缺口，不能被顺序开关断言或回归总数抵消；重置仅作用于虚拟状态和默认资料，不能据其断言宣称清空真人、收藏或媒体。归档总耗时3049.829 ms只说明回归成本。五张隔离截图补充页面呈现证据，不增加测试项数，也不代表完整浏览器回归完成。
+
+结论仍受证据边界约束：模拟模型验证协议与状态流，不证明指定真实服务商兼容、文本质量、人物一致性或情绪正确性；历史浏览器记录不替代本轮消息/风格竞争、建议仅填草稿、二次确认及生图界面的完整复测。HTTP和未加密SQLite不提供传输/静态加密，缺少全面渗透、压力极限、无障碍与真实多人长期使用验证。参考分和情绪标签应当仅作软件提示，源码中参考分的部分高分文案较强，不能将其当作心理事实或需求已满足的证据。
+
+当前证据由回归原始输出、逐文件行数统计、五张隔离截图和真实Git记录共同组成，各自说明执行结果、代码规模、页面呈现和提交历史，不能互相替代。后续真实模型或性能验证应使用隔离账号/数据库，记录环境、数据规模、服务配置范围和人工评判，分别标明主成功流程、失败分支及仍未验证项。真实代码节选、断言与带日期的历史测量明细见附录。

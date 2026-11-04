@@ -2,40 +2,387 @@
 \label{chap:requirements}
 
 \section{需求分析概述}
-选取合适的图表准确说明用户需求，明确所做系统要实现的目标。表的格式示例如下：
+本章从当前可执行源码反向梳理课程原型的需求、参与者及业务约束。主要依据为 \texttt{server.mjs}、\texttt{public/app.mjs}、\texttt{public/core.mjs} 以及 \texttt{lib/} 下的认证、匹配、抽取、真人通信、媒体和生图模块。需求编号用于本报告的追踪，不表示仓库中原先已有同名需求文档；验收条件是应检查的行为，而非本次已经全部执行的测试结果。
+
+系统的主要参与者是未登录访客、已登录用户、作为对话另一方的真人账号、演示操作者，以及外部文本模型和图片编辑服务。真人对话双方具有相同账号能力，“真人对方”只是具体用例中的相对角色。AI 虚拟人物是系统内部维护的设定和状态，不应画成与真人同等的外部用户。演示操作者通过当前账号的 Demo 面板改变虚拟状态，不是拥有所有用户数据权限的管理角色。管理员的服务端环境配置属于部署前提，本章不虚构网页管理后台。
+
+需求划分为身份与资料、相遇与收藏、纸条与对话、表达辅助、媒体与生图、虚拟感受与演示六类。真人业务和虚拟业务共享部分页面，但分别存储和执行规则；特别是暂存、屏蔽、心笺、回望及双向揭晓不能因为出现于同一产品中就被描述为全部支持真人对象。
+
+\subsection{功能需求与追踪}
 
 \begin{table}[H]
   \centering
-  \caption{××××××××××}
-  \label{tab:requirements-example}
+  \caption{核心业务功能需求表}
+  \label{tab:requirements-core}
   {\songti\rmfamily\zihao{5}
-  \renewcommand{\arraystretch}{1.25}
-  \begin{tabular*}{.96\textwidth}{@{\extracolsep{\fill}}cccc@{}}
-    \toprule[1.5bp]
-    ××××× & ××× & ××× & ××× \\
-    \midrule[.5bp]
-    ××××× & ×× & ×× & ×× \\
-    ××××× & ×× & ×× & ×× \\
-    ××××× & ×× & ×× & ×× \\
-    ××××× & ×× & ×× & ×× \\
-    \bottomrule[1.5bp]
-  \end{tabular*}}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.09\textwidth}p{.15\textwidth}p{.41\textwidth}p{.25\textwidth}@{}}
+    \toprule
+    编号 & 功能 & 需求及验收关注点 & 源码依据 \\
+    \midrule
+    FR-01 & 账号会话 & 注册、登录、退出；新登录使原会话失效；非法凭据及重复账号给出提示。 & \texttt{lib/auth.mjs} \\
+    FR-02 & 匹配资料 & 两段介绍经同意后提取标签；失败保留介绍、可重试；不公开对方期望描述。 & \texttt{lib/matching.mjs} \\
+    FR-03 & 相遇抽取 & 双向评分筛选后加权抽取；待决定结果持久化并复用；当前每日不限次数。 & \texttt{lib/draw.mjs} \\
+    FR-04 & 收藏管理 & 喜欢、跳过、移除；最多五位；跳过或移除触发三十天冷却；历史交流不因此删除。 & \texttt{lib/draw.mjs} \\
+    FR-05 & 真人纸条 & 仅向已收藏且接收开放的真人投递；收件人接受并回信后建会话，或拒绝。 & \texttt{lib/real-chat.mjs} \\
+    FR-06 & 真人对话 & 双方本人发送消息；仅参与者可读取、写入；显示时间并轮询同步，不由 AI 代回。 & \texttt{lib/real-chat.mjs} \\
+    FR-07 & 虚拟互动 & 纸条、来信处理和模型回复；失败保留待回复状态，重试不重复写入原消息。 & \texttt{public/core.mjs} \\
+    \bottomrule
+  \end{tabular}}
 \end{table}
 
-×××××××××××××××××××××××××××（如图\ref{fig:requirements-example}所示），图的格式示例如下：
-
-\begin{figure}[H]
+\begin{table}[H]
   \centering
-  % 已按照 Word 的裁切参数导出，仅显示框图本身。
-  % 原始的整屏截图另存为 assets/diagram-original.png。
-  \includegraphics[width=.96\textwidth]{assets/diagram.png}
-  \caption{××××××××××}
-  \label{fig:requirements-example}
-\end{figure}
+  \caption{辅助交互与演示功能需求表}
+  \label{tab:requirements-assistance}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.09\textwidth}p{.15\textwidth}p{.41\textwidth}p{.25\textwidth}@{}}
+    \toprule
+    编号 & 功能 & 需求及验收关注点 & 源码依据 \\
+    \midrule
+    FR-08 & 拾言建议 & 三项可编辑建议与自己输入；四种风格可切换；点击建议只填草稿，不自动发送。 & \texttt{server.mjs}；\texttt{public/app.mjs} \\
+    FR-09 & 情绪展示 & 真人最新对方消息的分析绑定消息编号；低置信度、缺图或失败回退默认立绘。 & \texttt{public/}\allowbreak\texttt{portraits.mjs}；\texttt{server.mjs} \\
+    FR-10 & 媒体管理 & 头像、背景和立绘独立上传、替换、删除；默认与六种情绪立绘分别保存。 & \texttt{lib/media.mjs} \\
+    FR-11 & 情绪生图 & 明确授权参考图外发；后台生成、私有预览、确认保存；旧版本不得覆盖新资源。 & \texttt{lib/portrait-}\allowbreak\texttt{generation.mjs} \\
+    FR-12 & 感受与授权 & 虚拟人物心笺、回望、周期揭晓与屏蔽；私人记录不等于对方意愿，不向模型发送。 & \texttt{public/core.mjs} \\
+    FR-13 & Demo 操作 & 注入预设虚拟来信、设置虚拟意愿及授权、推进模拟日期；重置需二次确认。 & \texttt{lib/actions.mjs}；\texttt{public/app.mjs} \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{个人偏好与真人交流参考需求表}
+  \label{tab:requirements-preferences}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.09\textwidth}p{.15\textwidth}p{.41\textwidth}p{.25\textwidth}@{}}
+    \toprule
+    编号 & 功能 & 需求及验收关注点 & 源码依据 \\
+    \midrule
+    FR-14 & 个人偏好 & 编辑展示名、交流习惯、主页话题和陌生人纸条接收开关；仅保存本人可编辑字段。 & \texttt{lib/actions.mjs} \\
+    FR-15 & 交流参考分 & 真人会话参考分由回复节奏、连续性、文字占比及可选模型结果组合；请求开始时校验双方开关，在途撤回仍有复核缺口。 & \texttt{lib/}\allowbreak\texttt{favorability.mjs}；\texttt{server.mjs} \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\subsection{关键业务规则}
+\begin{enumerate}
+  \item 身份与资料：用户名为三至二十位字母、数字或下划线，密码为八至一百二十八个字符；会话固定三十天到期，不滑动续期。注册页面要求两段各十至五百字符的介绍及展示、分析同意；服务端从固定词表校验每组一至八个不重复标签。
+  \item 候选与抽取：分别计算双方期望标签被对方本人标签满足的比例；任一方向无交集则记零，否则取两方向平均并转换为整数百分数。分数至少六十才可入池，并排除本人、已收藏和冷却对象；真人候选还需开放接收且无已有会话或待回应纸条。金、紫、蓝分别表示九十五至一百、八十五至九十四、六十至八十四的参考档位，不是关系成功概率。
+  \item 收藏与恢复：初始三位虚拟人物占五个收藏位中的三个，标为“初始相遇”且没有虚构匹配分数；移除后不自动补回。未决定抽取结果先处理“喜欢”或“跳过”才能继续；满员需先移除。跳过或移除后的冷却为三十天，移除不删除已有纸条和聊天。
+  \item 纸条与会话：纸条和首封回信限一至一百字符，普通用户聊天消息限一至五百字符。真人每日最多递出两张纸条，按服务器本地自然日统计，同一对用户不能并存待回应纸条；收件人接受并回信后会话和首轮消息一起提交。虚拟人物纸条另有每日两次额度，并拒绝已有待处理、暂存或归档纸条的重复投递，其演示日期受模拟偏移影响，不能与抽卡日期口径混用。
+  \item 分析与发言：拾言输出三种解释和三项建议；风格为自然日常、轻松幽默、温柔关心、直接简短。真人聊天约每两秒检查更新，页面隐藏时暂停相关同步；另有约六秒的页面状态同步，并非 WebSocket 实时推送。结果绑定最新对方消息及风格，分析不阻止真人手动发言。虚拟聊天存在待回复任务时则需先完成或重试。
+  \item 情绪与图片：情绪标签限定为六种情绪、平静或难以判断；模型参考置信度至少七十且存在对应图片时才切换真人立绘，否则显示默认图，默认图也缺失时显示问号人。头像和立绘分别最多二百万字节，背景最多三百万字节，仅支持 PNG、JPEG、WebP；头像用于资料及纸条，立绘用于聊天舞台，背景只用于本人场景。
+  \item 生图与确认：只读取当前账号的默认立绘作为参考图，须另行同意外发；每账号同时一个运行任务或待确认预览，全系统最多并发生图两次，每账号滚动二十四小时最多十二次，失败也计次。默认超时一百八十秒，不自动重试；未完成任务在重启后标为失败，非运行任务及预览保留期限为七天。确认保存须核对默认图摘要和目标情绪版本。
+  \item 虚拟意愿揭晓：周期从账号演示状态初始化起每七天计算，一整个周期只有一次确认机会，并非每个人物各一次。须先有双向交流、本人当期积极意愿及授权、虚拟对方当期授权；不满足资格不耗机会。结果取虚拟场景中的意愿，不由 AI 判断真人好感；跨周期需要重新确认授权，屏蔽虚拟人物会停止后续互动并撤销相关授权。
+  \item 真人交流参考：展示名最多二十字符、交流习惯和主页话题分别最多一百字符；接收偏好与交流参考功能可独立设置。真人参考分在双方功能开关均开启时可查看；模型有效时四类因素各占百分之二十五，模型不可用时回复节奏、连续性、文字占比分别占百分之三十五、三十五、三十。会话参考缓存记录末条消息编号及分析时间，不属于七天揭晓机制，也不能凭回复速度和字数确定真实好感。
+\end{enumerate}
+
+正常界面的意愿和授权由用户显式选择，但虚拟动作接口中的部分授权参数目前使用真值转换而非严格布尔校验，字符串等非法类型可能被误解释。这是服务端类型校验的已知缺口，不将正常页面复选框等同于完整授权协议。真人交流参考在模型请求开始时检查双方开关，等待期间关闭后，旧分析仍可能保存和返回，尚不具备严格的在途撤回保障。
 
 \section{UML 相关需求分析图}
-选取合适的图表准确说明用户需求，明确所做系统要实现的目标。
+\subsection{系统用例图}
+图\ref{fig:requirements-usecase}以业务系统为边界，展示外部角色与主要用户目标。为避免把正常登录前提误画成每个操作都重新登录，图中不为所有用例添加登录包含关系。“接收并回应真人纸条”与“真人对话”由对方真人账号参与；外部文本模型参与标签提取、虚拟回复和可选建议，外部图片服务仅参与授权后的生图。虚线扩展箭头从可选辅助行为指向基础用例；真人发言可以完全不使用 AI。
+
+% Integration prerequisite: load \usepackage{tikz} in a chapter-capable host preamble.
+% The existing main.tex inputs content/, not chapters/; it is intentionally untouched.
+\begin{figure}[H]
+  \centering
+  \ifdefined\tikzpicture
+  \usetikzlibrary{shapes.geometric}
+  \resizebox{.98\textwidth}{!}{%
+  \begin{tikzpicture}[x=1cm,y=1cm,
+    every node/.style={font=\small},
+    uc/.style={draw,ellipse,align=center,text width=2.6cm,minimum height=.85cm},
+    actor/.style={align=center,text width=2cm},
+    relation/.style={dashed,->,>=stealth}]
+    \draw[rounded corners] (0,0) rectangle (11,15.4);
+    \node at (5.5,15) {谁能打开你的窗：业务系统边界};
+    \node[actor] (visitor) at (-1.7,13.9) {访客};
+    \node[actor] (user) at (-1.7,8.9) {已登录用户};
+    \node[actor] (operator) at (-1.7,1.2) {演示操作者};
+    \node[actor] (other) at (12.7,11.1) {对方真人账号};
+    \node[actor] (textai) at (12.7,6.9) {外部文本模型};
+    \node[actor] (imageai) at (12.7,2.7) {外部图片服务};
+    \node[uc] (auth) at (2.4,13.9) {UC-01\\注册、登录与退出};
+    \node[uc] (profile) at (2.4,12.1) {UC-02\\维护匹配资料};
+    \node[uc] (draw) at (2.4,10.3) {UC-03\\抽取与收藏};
+    \node[uc] (note) at (2.4,8.5) {UC-04\\递出真人纸条};
+    \node[uc] (virtual) at (2.4,6.7) {UC-06\\虚拟人物互动};
+    \node[uc] (media) at (2.4,4.9) {UC-09／UC-13\\管理形象与个人偏好};
+    \node[uc] (feeling) at (2.4,3.1) {UC-11\\虚拟心笺与揭晓};
+    \node[uc] (demo) at (2.4,1.3) {UC-12\\设置与重置演示};
+    \node[uc] (tags) at (8.4,13.1) {提取匹配标签};
+    \node[uc] (respond) at (8.4,11.3) {UC-05\\接收并回应真人纸条};
+    \node[uc] (chat) at (8.4,9.5) {UC-05\\真人对话};
+    \node[uc] (guide) at (8.4,7.7) {UC-07／UC-08\\建议与情绪参考};
+    \node[uc] (reply) at (8.4,5.9) {生成虚拟人物回复};
+    \node[uc] (score) at (8.4,4.3) {UC-14\\查看真人交流参考分};
+    \node[uc] (generate) at (8.4,2.7) {UC-10\\授权生图与确认};
+    \draw (visitor) -- (auth);
+    \foreach \target in {auth,profile,draw,note,virtual,media,feeling}
+      \draw (user.east) -- (\target.west);
+    \draw (user.east) -- (respond.west);
+    \draw (user.east) -- (chat.west);
+    \draw (user.east) -- (score.west);
+    \draw (operator) -- (demo);
+    \draw (other) -- (respond);
+    \draw (other) -- (chat);
+    \foreach \target in {tags,guide,reply}
+      \draw (textai.west) -- (\target.east);
+    \draw (imageai) -- (generate);
+    \draw (textai.south) -- (score.east);
+    \draw[relation] (tags.west) -- node[above,align=center] {\texttt{<<extend>>}\\同意且请求分析} (profile.east);
+    \draw[relation] (guide.north) -- node[right] {\texttt{<<extend>>}} (chat.south);
+    \draw[relation] (guide.west) -- node[above] {\texttt{<<extend>>}} (virtual.east);
+    \draw[relation] (virtual.east) -- node[below] {\texttt{<<include>>}} (reply.west);
+    \draw[relation] (generate.west) -- node[above,sloped] {\texttt{<<extend>>}} (media.east);
+    \draw[relation] (score.east) -- (10.3,4.3) -- node[right] {\texttt{<<extend>>}} (10.3,9.5) -- (chat.east);
+  \end{tikzpicture}}
+  \else
+    \fbox{\parbox{.9\textwidth}{\centering
+      TikZ 用例图源码已在本章节中提供。\\
+      当前编译入口须在导言区加载 \texttt{tikz} 宏包后才能绘图。\\
+      此提示不是已渲染的用例图。}}
+  \fi
+  \caption{系统用例图（真人业务与虚拟演示分离）}
+  \label{fig:requirements-usecase}
+\end{figure}
+
+图中标签提取作为维护资料的条件扩展，因为资料保存可以先成功而分析仍待完成；生图作为媒体管理的可选扩展，需要默认图、授权和服务可用。虚拟人物互动的模型回复属于正常成功流程的包含行为，故模型不可用时该回复无法完成。纸条接受是建立真人会话的业务前置条件，而非每次聊天都要再次执行的包含用例。图示省略存储实现和轮询细节，详细规则以用例表为准。
+
+\subsection{用例总览}
+\begin{table}[H]
+  \centering
+  \caption{用例与功能需求追踪表}
+  \label{tab:requirements-usecase-index}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}p{.11\textwidth}p{.33\textwidth}p{.27\textwidth}p{.19\textwidth}@{}}
+    \toprule
+    用例 & 用户目标 & 参与者 & 关联需求 \\
+    \midrule
+    UC-01 & 注册、登录和退出 & 访客、已登录用户 & FR-01 \\
+    UC-02 & 保存资料并请求标签提取 & 用户、文本模型 & FR-02 \\
+    UC-03 & 抽取、喜欢、跳过及移除 & 用户 & FR-03、FR-04 \\
+    UC-04 & 向真人递出纸条 & 用户、真人收件人 & FR-05 \\
+    UC-05 & 回应真人纸条并继续对话 & 两个真人账号 & FR-05、FR-06 \\
+    UC-06 & 与虚拟人物通过纸条交流 & 用户、文本模型 & FR-07 \\
+    UC-07 & 获取并编辑回复建议 & 用户、文本模型 & FR-08 \\
+    UC-08 & 查看情绪参考及立绘回退 & 用户、文本模型 & FR-09 \\
+    UC-09 & 上传及管理场景与形象 & 用户 & FR-10 \\
+    UC-10 & 授权生图、预览及确认 & 用户、图片服务 & FR-11 \\
+    UC-11 & 记录虚拟心笺与当期揭晓 & 用户 & FR-12 \\
+    UC-12 & 设置、推进和重置 Demo & 演示操作者 & FR-13 \\
+    UC-13 & 编辑个人资料与接收偏好 & 用户 & FR-14 \\
+    UC-14 & 查看及更新真人交流参考 & 用户、文本模型 & FR-15 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\subsection{身份、发现与首次接触用例}
+以下表格采用“前置条件、主成功流程、异常与后置条件”描述。合并列示相近用例是为了减少重复，编号仍与表\ref{tab:requirements-usecase-index}保持一致。
+
+\begin{table}[H]
+  \centering
+  \caption{UC-01／UC-02：账号与匹配资料用例规约}
+  \label{tab:requirements-uc-account}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.18\textwidth}p{.74\textwidth}@{}}
+    \toprule
+    项目 & 规约内容 \\
+    \midrule
+    参与者与触发 & 访客提交注册或登录；用户在“我的匹配资料”中保存或重试分析。 \\
+    前置条件 & 本地服务可访问；注册需合法凭据、两段介绍及同意；模型提取还需服务端配置有效。 \\
+    主成功流程 & 1. 校验注册输入并创建账号和会话，或核验已有凭据并替换旧会话。2. 保存介绍；同意后请求提取固定词表标签。3. 校验模型输出，资料标为可匹配；进入主页或更新资料状态。4. 退出时删除当前会话。 \\
+    异常分支 & 撞名、非法凭据、失败次数达限时拒绝并提示；AI 未配置、超时或标签不合法时保留介绍为待提取。资料在请求期间变化时不得写回旧标签。旧设备在后续请求发现会话失效并返回登录页。 \\
+    后置条件 & 数据属于当前账号；标签未就绪不能抽取。会话替换不是清空互动数据，不提供密码找回或真实身份认证。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{UC-03：抽取与收藏用例规约}
+  \label{tab:requirements-uc-draw}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.18\textwidth}p{.74\textwidth}@{}}
+    \toprule
+    项目 & 规约内容 \\
+    \midrule
+    参与者与触发 & 已登录用户在“遇见”点击抽取，或处理待决定结果及收藏卡片。 \\
+    前置条件 & 本人标签就绪、收藏未满且存在合格候选；已有待决定结果时先恢复原结果。 \\
+    主成功流程 & 1. 服务端筛选真人及新增虚拟候选并计算分数。2. 按分数加权抽取并持久化快照。3. 展示身份类型、介绍、标签和参考档位。4. 用户喜欢则收藏，跳过则冷却；移除收藏也进入冷却。 \\
+    异常分支 & 无人选、资料未完成或满员时给出原因；重复和并发抽取复用未决定结果。刷新、跳过动画不更改已保存结果，必须完成决定才能再抽。 \\
+    后置条件 & 收藏不超过五位，当前抽卡不设每日次数上限；跳过或移除三十天内不再入池。初始人物不显示虚构契合度，移除不删除历史会话。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{UC-04／UC-05：真人纸条与对话用例规约}
+  \label{tab:requirements-uc-real}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.18\textwidth}p{.74\textwidth}@{}}
+    \toprule
+    项目 & 规约内容 \\
+    \midrule
+    参与者与触发 & 真人发送者递纸条；真人收件人在“纸条”选择接受并回信或拒绝；双方进入对话。 \\
+    前置条件 & 已登录；收件人已被收藏且开放接收；不是本人、没有已有会话或双方待回应纸条，日额度未用完。 \\
+    主成功流程 & 1. 校验一至一百字符正文，保存待回应纸条。2. 收件人本人接受并写回信。3. 事务内创建会话，原纸条与回信成为首轮消息。4. 双方自行输入一至五百字符消息，服务端保存并由页面轮询展示时间与内容。 \\
+    异常分支 & 对方关闭接收、额度不足、纸条已处理或非收件人操作时拒绝；拒绝纸条只更新状态、不建会话。非参与者读取或写入会话失败；AI 不可用不阻止已有真人会话手动发言。 \\
+    后置条件 & 消息发送者始终是真人账号，不由 AI 冒充。默认快照读取每会话最近五十条消息，不能写成已提供无限历史翻页；真人拒绝不等同于虚拟暂存或屏蔽。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\subsection{AI、媒体与演示用例}
+\begin{table}[H]
+  \centering
+  \caption{UC-06／UC-07／UC-08：虚拟互动与表达辅助用例规约}
+  \label{tab:requirements-uc-ai}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.18\textwidth}p{.74\textwidth}@{}}
+    \toprule
+    项目 & 规约内容 \\
+    \midrule
+    参与者与触发 & 用户递虚拟纸条、处理演示来信、请求模型回复，或在真人及虚拟对话使用拾言。 \\
+    前置条件 & 目标虚拟人物可联系且未屏蔽；发送需通过额度及状态检查。建议和模型回复需 AI 服务可用；真人分析须有有效会话及最新对方消息。 \\
+    主成功流程 & 1. 保存虚拟纸条或消息并登记待回复。2. 模型返回后校验、写入虚拟回复并清理任务。3. 分析交流，展示三种可能解释和三项建议。4. 用户选建议进入草稿，可修改或改用自己输入，再明确发送。5. 真人情绪结果与最新对方消息绑定，符合阈值及资源条件才切换立绘。 \\
+    异常分支 & 虚拟来信可暂存或归档；生成失败保留已发消息和任务，仅重试回复，不重复发送。风格或消息已经变化则忽略旧建议；低置信度、缺图、格式不合法或分析失败时回退默认立绘。真人分析期间仍可手动发言。 \\
+    后置条件 & 建议不自动发送；虚拟待回复未完成时不能再发新消息。情绪是 AI 参考而非心理事实；未设默认图显示问号人。预设注入来信明确标记，不冒充模型生成。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{UC-09／UC-10：媒体管理与情绪生图用例规约}
+  \label{tab:requirements-uc-media}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.18\textwidth}p{.74\textwidth}@{}}
+    \toprule
+    项目 & 规约内容 \\
+    \midrule
+    参与者与触发 & 用户在“场景与形象”上传、替换或删除图片，或选择情绪并授权生图。 \\
+    前置条件 & 当前账号有效；上传符合用途、格式和大小限制。生图需本人默认立绘、明确外发同意、有效图片服务及可用额度。 \\
+    主成功流程 & 1. 上传独立头像、背景或立绘并保存版本。2. 生图记录默认图摘要和目标情绪版本，后台向图片编辑服务发送本人参考图。3. 校验生成 PNG、透明通道及大小，结果保存为私有预览。4. 用户核查人物、服装、风格和构图，确认后再次检查版本并保存到对应情绪槽位。 \\
+    异常分支 & 文件签名不符或超大时拒绝；生图超时、并发或次数达限时提示且不自动重试。已有任务或待确认结果需先处理；参考图或目标情绪已变时拒绝旧预览。重启中断的任务标失败，不覆盖既有图片。 \\
+    后置条件 & 头像与聊天立绘互不替代；普通手动上传不发送给 AI，生图例外须授权。生成结果经确认才保存，不覆盖默认图；图片质量及人物一致性仍需人工检查。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{UC-11／UC-12：虚拟感受与 Demo 操作用例规约}
+  \label{tab:requirements-uc-demo}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.18\textwidth}p{.74\textwidth}@{}}
+    \toprule
+    项目 & 规约内容 \\
+    \midrule
+    参与者与触发 & 用户记录心笺、回望或轻叩窗扉；演示操作者使用 Demo 面板设置虚拟情景。 \\
+    前置条件 & 目标为可操作虚拟人物。揭晓需双向交流、本人当期积极意愿与授权、对方当期授权，且本周期机会未使用。 \\
+    主成功流程 & 1. 记录零至一百分私人分数及最多二百字备注。2. 选择当期意愿并决定授权。3. 演示面板设置虚拟对方意愿和授权。4. 合格时揭晓并记录是否双方积极，消耗整个周期一次机会。5. 可推进模拟日期、注入预设来信；确认重置后重建虚拟互动状态。 \\
+    异常分支 & 缺授权、过期、未交流、屏蔽或机会用完时说明原因，资格不符不消耗机会。推进天数只允许范围内整数，不能回退或超出累计限制；重置需二次确认。 \\
+    后置条件 & 私人分数不改变双方意愿；跨周期须重新授权。虚拟屏蔽停止互动并撤回授权，举报没有审核投递服务。重置恢复默认展示资料及开关，并清除虚拟互动、授权和模拟时间；保留账号、真人纸条与会话、匹配资料、抽取收藏、媒体和模型配置，不影响其他账号。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{UC-13／UC-14：个人偏好与真人交流参考用例规约}
+  \label{tab:requirements-uc-preferences}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.18\textwidth}p{.74\textwidth}@{}}
+    \toprule
+    项目 & 规约内容 \\
+    \midrule
+    参与者与触发 & 用户编辑本人资料与接收偏好，或在真人会话查看、主动更新交流参考分。 \\
+    前置条件 & 账号有效；资料满足长度要求。查看参考须为会话参与者且双方功能开关均开启；模型分析为可选因素。 \\
+    主成功流程 & 1. 服务端逐项保存展示名、习惯、话题与接收偏好。2. 更新本人交流参考开关。3. 校验会话归属与双方开关，读取缓存或请求重新分析。4. 计算回复节奏、连续性、文字占比，组合可选模型结果并保存覆盖消息编号及时间。 \\
+    异常分支 & 非法资料拒绝写入；非参与者不能查询。请求开始时任一方关闭则返回隐藏原因，但在途关闭尚未复查；模型未配置或调用失败可降级使用三类规则指标，并发额度已满时主动分析可能被拒绝。 \\
+    后置条件 & 关闭陌生人纸条不等于删除已建会话。参考分只是软件指标，不确认对方心理；功能开关不是周期揭晓授权，缓存也不保证始终覆盖所有最新消息。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
 
 \section{原型系统设计}
-运用工具设计原型系统，从而更准确说明主要功能和用户交互界面。
-……
+原型采用水彩场景与卡片式导航组织主要任务，页面不是独立于实现的静态线框，而是当前浏览器前端的交互入口。本节引用 \texttt{assets/report/} 下五张报告截图，2026年11月4日在1440$\times$1000视口、内存数据库和模拟模型条件下采集。账号、消息及立绘均为隔离演示数据；真人演示账号的立绘使用项目已有公开插画，不是实际用户私有上传。截图只说明页面呈现及取证脚本所查行为，不能单独证明服务端权限、真实模型质量或完整浏览器业务回归通过。
+
+% Screenshots are required evidence assets for the formal report.
+\begingroup
+\newcommand{\RequirementsScreenshot}[3]{%
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=.9\textwidth,height=.42\textheight,keepaspectratio]{#1}%
+    \caption{#2}
+    \label{#3}
+  \end{figure}%
+}
+
+\subsection{登录与注册界面}
+图\ref{fig:requirements-login}对应账号入口。登录表单收集用户名和密码，说明同账号单有效会话规则；注册模式增加自我介绍、期望介绍和展示及 AI 分析同意选项。非法输入和重复账号应给出中文提示，注册失败恢复非密码字段。验收应分别检查注册、已有账号登录和会话被替换，而不是以一张登录页截图替代三项行为验证。
+\RequirementsScreenshot{assets/report/login.png}{登录与注册入口（隔离演示）}{fig:requirements-login}
+
+\subsection{遇见与收藏界面}
+图\ref{fig:requirements-meet}对应人物发现。页面展示收藏占位、初始相遇与新抽取对象，身份类型、参考契合度和标签应清楚区分；当前显示测试阶段不限抽取次数。用户可以跳过动画、喜欢、跳过或移除收藏，未决定结果需要恢复并处理，不能靠刷新重新抽取。满员、资料待提取及无候选应显示具体原因，不能虚构保底对象。
+\RequirementsScreenshot{assets/report/meet.png}{遇见与收藏入口（隔离演示）}{fig:requirements-meet}
+
+\subsection{纸条处理界面}
+图\ref{fig:requirements-notes}对应收件与递出记录。真人纸条由对方账号本人回应，接受并回信后进入对话，拒绝则不建会话；虚拟纸条提供明确标记的 AI 回应流程，预设演示来信可以回复、暂存或归档。页面应展示对象类型、正文、方向与状态，只有相应角色和状态下的操作才可用。“回复表示愿意交流”不能被界面表述为恋爱承诺。
+\RequirementsScreenshot{assets/report/notes.png}{纸条记录与处理入口（隔离演示）}{fig:requirements-notes}
+
+\subsection{对话与表达辅助界面}
+图\ref{fig:requirements-chat}对应场景、人物、消息历史和输入区域。聊天舞台保留三个 AI 建议及自己输入，建议风格可切换且草稿不因切换而清空。真人消息显示发送时间；情绪文字及立绘使用同一最新对方消息分析，说明“仅供参考”，分析中、失败、难以判断和缺少对应图片应有可理解状态。用户自己的发言不应被误当作对方的情绪依据。真人会话的交流参考分单独受双方功能开关限制，不借用虚拟心笺的私人分数或意愿授权。
+\RequirementsScreenshot{assets/report/chat.png}{对话、拾言建议与情绪参考界面（隔离演示）}{fig:requirements-chat}
+
+\subsection{场景与形象界面}
+图\ref{fig:requirements-media}对应媒体设置。独立头像用于圆形资料框，个人默认及六种情绪立绘用于对话舞台，背景用于本人场景；各资源可单独替换或移除。生图入口需要本人默认立绘及单独授权，显示运行、失败或待确认状态，并让用户预览后决定保存或放弃。不能将“已请求生成”“已获得预览”和“已保存情绪图”混为同一状态。
+\RequirementsScreenshot{assets/report/media.png}{场景、头像与立绘设置（隔离演示）}{fig:requirements-media}
+\endgroup
+
+\section{非功能需求与验收边界}
+\subsection{安全、隐私与可恢复性}
+\begin{table}[H]
+  \centering
+  \caption{非功能需求与验证口径}
+  \label{tab:requirements-nonfunctional}
+  {\songti\rmfamily\zihao{5}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}p{.1\textwidth}p{.15\textwidth}p{.4\textwidth}p{.25\textwidth}@{}}
+    \toprule
+    编号 & 质量属性 & 要求与当前机制 & 验证及边界 \\
+    \midrule
+    NFR-01 & 访问安全 & scrypt 加盐密码摘要；会话仅存令牌摘要；Cookie 使用 HttpOnly 和 SameSite；业务按账号及会话参与者校验。 & 查存储与越权响应；HTTP 无 Secure，数据库未加密。 \\
+    NFR-02 & 数据最小化 & 模型凭据不进入前端；对方期望介绍不公开；心笺备注与授权不发给文本模型；生图参考图须另行同意。 & 检查实际上游载荷；不承诺所有资料均不外发。 \\
+    NFR-03 & 错误可理解 & 非法输入及上游失败统一返回状态码与中文业务错误，敏感配置及上游原文不直接暴露。 & 构造非法 JSON、超大文件、限流、超时及格式错误。 \\
+    NFR-04 & 状态一致 & 事务、唯一约束、待决定复用；消息与风格绑定分析；生图确认检查参考及目标版本。 & 模拟并发、过期响应及重启；不是无限负载承诺。 \\
+    NFR-05 & 故障恢复 & 虚拟回复失败保留任务；会话失效尽力暂存草稿；模型异常不阻止已有真人手动通信。 & 检查重试无重复与重新登录恢复；浏览器存储失败仍可能限制草稿恢复。 \\
+    NFR-06 & 效率与资源 & 最近消息限量读取；文本并发四次、生图两次；文本默认超时三十五秒、生图一百八十秒。 & 独立测量本地接口；不以模拟模型耗时代表真实推理或公网容量。 \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+登录失败限流按十五分钟窗口分别统计同 IP 与账号组合十次、同 IP 合计三十次；局域网白名单检查 TCP 对端地址而非可伪造的转发头。普通 JSON 请求上限为六万四千字节，媒体上传路由另有较大请求体限制，不能把普通请求体上限误当作图片限制。静态资源白名单、跨站检查和响应安全策略是现有防护措施，不等于已完成全面渗透测试或生产安全审计。
+
+\subsection{可用性与验证组织}
+界面应适配手机与桌面、允许长内容滚动，并提供动画跳过、减少动态效果和图片失败回退。中文错误提示、非密码字段恢复、明确发送按钮及重置二次确认是当前可用性机制。各新页面的无横向溢出、键盘操作和视觉对比度需要对应版本浏览器核对；已有历史浏览器记录不能替代当前版本完整的无障碍认证。
+
+验收可沿 UC-01 至 UC-14 的顺序准备独立账号和虚拟场景，分别检查主成功流程、非法输入、权限拒绝、模型失败及恢复。模型业务宜使用显式模拟上游开展隔离测试，不读取日常密钥，不修改日常数据库；真实服务兼容性、文本质量及人物一致性需要另行记录服务商、配置范围和人工检查结果，避免把模拟响应当作真实生成。
+
+\texttt{VERIFICATION.md} 的2026年10月31日记录提供一轮120项回归、十九项非功能检查和十六组本地接口测量，环境及模拟模型口径已有注明。第\ref{chap:implementation}章另记录本轮120项回归及截图检查，不能把两轮测量混用。五张截图来自2026年11月4日的1440$\times$1000桌面视口、\texttt{report\_viewer}和\texttt{report\_partner}隔离账号，场景由\texttt{scripts/capture-report.mjs}构造；当前工作区包括未提交修改，不能只以HEAD声称对应某个完整已提交版本。
+
+需求范围最终以当前源码及其权限规则为准：没有密码找回、邮箱验证、真实身份或年龄核验、真实举报审核投递、端到端加密及公网生产保障。虚拟心笺和周期揭晓只能用于说明演示状态机，真人通信只能说明账号之间的文字交流；两者都不能证明用户关系、真实情绪或社交效果。个人资料与团队工时继续待填，未验证能力继续注明待验证。

@@ -1,4 +1,36 @@
-# 软件工程项目报告原样式 LaTeX 版
+# 谁能打开你的窗：软件工程项目报告
+
+## 正式报告
+
+正式入口是 `report.tex`，交付文件是 `report.pdf`。报告依据同级项目的当前源码，覆盖问题定义、需求、系统设计、实现与测试、总结、体会和附录。采用自动目录、章节及图表编号，前置页用罗马页码，正文用阿拉伯页码。
+
+```powershell
+# 在本目录执行
+latexmk -xelatex -interaction=nonstopmode -halt-on-error -file-line-error report.tex
+# Windows 也可双击 build.bat；默认编译正式报告
+```
+
+macOS / Linux 可运行 `bash build.sh`。所有环境均使用 XeLaTeX，不能使用 pdfLaTeX。字体优先采用本机宋体、黑体和 Times New Roman，缺失时回退包内开源字体。
+
+| 文件 | 用途 |
+|---|---|
+| `report.tex`、`report.pdf` | 正式入口及报告 |
+| `chapters/` | 任务书、六章正文、封面与附录 |
+| `metadata.tex` | 题目、课程及待填写个人资料 |
+| `reportstyle.sty` | 正式报告字体、排版、目录、图表及代码 |
+| `assets/report/` | 五张隔离演示截图、回归输出和源码统计 |
+| `scripts/capture-report.mjs` | 内存数据库、模拟模型的截图生成工具 |
+| `待补充资料.md` | 封面、实际分工、个人体会和真实反馈清单 |
+
+报告明确区分当前源码、当前隔离回归、历史测量和未验证事项。本次回归120项通过；完整输出见 `assets/report/regression.txt`，环境及工作区摘要见 `assets/report/provenance.txt`。16组性能数据引用2026-10-31记录，未冒称为当前重测或真实模型耗时。五张截图来自隔离演示账号，真人对象的展示立绘在测试库中使用项目自带插画，不是实际用户上传的私有素材。
+
+个人资料和真实用户反馈尚待提供，报告保留明确标记，没有编造团队经历或访谈。填写后重新编译；成员槽位数量需要按实际人数调整。
+
+如需重新生成截图，在项目具备原有 Playwright 测试工具和 Chrome 的情况下运行 `node scripts/capture-report.mjs`。脚本不读取 `.env`，不连接真实模型、不打开日常数据库，结束时关闭测试资源。图片生成质量、真实模型兼容性和完整浏览器业务回归不是五张截图检查的证明范围。
+
+## 原样式参考版
+
+原 `main.tex`、`content/`、`word-layout.sty` 和 `main.pdf` 保持为复刻样本，以下说明仅针对原样式参考版。它不是正式报告的入口。执行 `build.bat main.tex` 或 `bash build.sh main.tex` 可单独编译参考版，避免误把 `main.pdf` 当作完成后的报告。
 
 本版以所提供 Word 文件的**实际直接格式**为依据，保留原文的文字、字号、颜色、粗体、下划线、段落层次、图表尺寸和手工目录。它用于保留参考样本的外观和内容，不会把其中的格式批注自动删除。
 
@@ -7,7 +39,7 @@
 1. 完整解压，保留 `content/`、`assets/` 和 `fonts/` 目录。
 2. 直接打开 `main.pdf` 查看本次编译后的效果。
 3. 编辑 LaTeX 时，以 `main.tex` 为主文件，使用 **XeLaTeX** 编译。
-4. 本机可执行 `latexmk -xelatex main.tex`；也可运行 `build.bat`（Windows）或 `bash build.sh`（macOS / Linux）。
+4. 本机可执行 `latexmk -xelatex main.tex`；也可运行 `build.bat main.tex`（Windows）或 `bash build.sh main.tex`（macOS / Linux）。
 
 本工程使用标准 `fontspec`、`xeCJK`、`geometry`、`xcolor`、`graphicx`、`array`、`booktabs`、`fancyhdr`、`etoolbox`、`xfp`、`hyperref` 宏包。常用的完整 TeX 环境包含这些宏包；若报缺包，请安装报错中对应的宏包。不要使用 pdfLaTeX 编译。
 
