@@ -1,0 +1,34 @@
+\clearpage
+\section{AI建议、对话理解与情绪立绘}
+\label{sec:design-guidance}
+AI辅助分别服务于“尚未写好怎样表达”和“已经收到对方消息但不确定怎样理解”。
+纸条草稿建议结合当前输入与话题给出短选项；对话理解依据已保存的近期交流，提供几种可能解释及回复建议。
+用户可选用建议或自行表达；对话理解按消息发送者区分双方经历，真人与虚拟交流分别采用各自的上下文。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportbox,text width=105mm] (req) at (0,0) {围绕页面已加载的最新对方消息，选择回复风格};
+\node[reportbox,text width=105mm] (server) at (0,-1.15) {确认交流对象与访问资格，依据已有消息生成理解与建议};
+\node[reportbox,text width=105mm] (back) at (0,-2.3) {对照页面已加载消息与回复风格；呈现解释、建议与情绪};
+\node[reportentity,text width=43mm] (send) at (-3.4,-3.75) {用户点击聊天建议\\核对已加载消息与风格后发送};
+\node[reportentity,text width=43mm] (mood) at (3.4,-3.75) {选择真人情绪立绘\\不明确或缺图时用默认形象};
+\draw[reportarrow] (req.south) -- (server.north);
+\draw[reportarrow] (server.south) -- (back.north);
+\draw[reportarrow] (back.south -| send.north) -- (send.north);
+\draw[reportarrow] (back.south -| mood.north) -- (mood.north);
+\end{tikzpicture}
+\caption{对话理解对回复选择与形象展示的辅助流程}\label{fig:design-guidance-binding}
+\end{figure}
+
+\subsection{多种解释与上下文连续性}
+对话理解提供三种解释、各自理由与相对参考权重，帮助用户从不同角度理解交流内容。
+回复建议提供不同接话方式，便于用户选择适合的表达。
+返回结果及点击建议时，浏览器依据页面已显示的最新对方消息和当前回复风格判断建议是否适用；
+发现变化时更新建议，使选项与已显示的交流内容衔接。生成失败时提示暂不可用，用户可自行输入或重试。
+
+\subsection{用户选择与形象回退}
+点击聊天建议直接进入真人或虚拟消息发送流程。点击纸条建议则填入草稿输入框，
+用户可以修改，再自行确认投递。
+真人情绪立绘在判断较明确且存在对应图片时选用，其余使用默认形象；虚拟人物使用固定内置立绘。
+

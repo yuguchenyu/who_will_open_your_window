@@ -1,0 +1,44 @@
+% Page 4: browser snapshots, local UI state and polling.
+\subsection{浏览器快照、UI 状态与轮询}
+浏览器取得服务端记录后展示相遇卡片、纸条、聊天与形象，
+草稿、当前对象和弹窗选择留在界面侧。页面刷新已保存内容时，保留本次编辑状态。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportbox,text width=108mm] (me) at (0,0) {进入页面：取得本人资料、互动记录与形象摘要};
+\node[reportbox,text width=108mm] (restore) at (0,-1.5) {恢复本次浏览器会话中的草稿与本人风格偏好\\继续加载背景、生成进度、相遇卡片与真人交流};
+\node[reportbox,text width=108mm] (render) at (0,-3.1) {展示当前结果；编辑留作草稿，处理结果更新对应内容};
+\node[reportentity,text width=47mm,font=\small] (poll) at (-3.5,-4.8) {页面可见且需要同步时刷新\\内容变化才更新展示};
+\node[reportentity,text width=47mm,font=\small] (act) at (3.5,-4.8) {用户提交动作或文本\\成功清草稿，失败保留输入};
+\draw[reportarrow] (me.south) -- (restore.north);
+\draw[reportarrow] (restore.south) -- (render.north);
+\draw[reportarrow] (render.south) -- (0,-3.9) -| (poll.north);
+\draw[reportarrow] (0,-3.9) -| (act.north);
+\end{tikzpicture}
+\caption{页面启动、记录同步与草稿保留流程}\label{fig:design-browser-snapshot}
+\end{figure}
+
+\begin{table}[H]
+\centering\small\linespread{1.15}\selectfont
+\caption{不同使用场景的同步安排}\label{tab:design-polling}
+\begin{tabularx}{\linewidth}{@{}p{.19\linewidth}p{.12\linewidth}X@{}}
+\toprule 场景 & 关注点 & 同步安排与用户结果 \\ \midrule
+生成任务 & 进度 & 生成中或查看形象时关注任务变化，按需更新弹窗，完成后可查看预览 \\
+聊天页面 & 新消息 & 关注当前交流；记录变化后更新消息，按需取得新的交流参考 \\
+相遇页面 & 待决定 & 保留正在查看与选择的卡片，完成决定后继续发现对象 \\
+纸条与相遇 & 新联系 & 呈现新联系提醒，兼顾当前草稿的编辑过程 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+页面可见且符合场景条件时定期查询变化，重绘时恢复输入、焦点及聊天阅读位置。
+例如写纸条时收到另一条联系，草稿仍可继续编辑，新记录按页面条件更新，减少同步打扰。
+
+提交成功后清除相应草稿，失败时保留输入供修改或重试。登录失效后引导重新登录，并通过暂存草稿接续编辑；
+请求中断或超时则保留输入并提示查询发送结果。浏览器暂存支持继续编辑，
+服务端返回的消息与登录记录用于更新发送状态和当前身份。
+
+表达建议和情绪展示按当前场景使用，详见第\ref{sec:design-guidance}节。
+
+\clearpage

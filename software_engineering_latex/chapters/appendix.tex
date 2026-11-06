@@ -1,321 +1,486 @@
-\ReportUnnumberedChapter{附录}
-\label{chap:appendix}
+% Original appendix retained as comments for reference.
+% \ReportUnnumberedChapter{附录}
+% \label{chap:appendix}
+% 
+% \section*{技术资料与来源说明}
+% 本报告的产品事实以当前项目源码、测试和归档输出为首要来源；需求分析及软件设计历史提交包仅用于追溯，若与当前实现不同，以当前源码及明确版本说明为准。NABCD用于组织需求、方法、收益、替代方案和交付渠道的定性分析，不据此宣称已经完成市场调研。以下官方资料用于解释术语与机制，项目实际采用范围仍以源码为准。
+% \begin{enumerate}
+%   \item Node.js 官方文档：HTTP、Crypto、SQLite 与测试框架。参考入口为 \url{https://nodejs.org/docs/latest-v24.x/api/http.html}、\url{https://nodejs.org/docs/latest-v24.x/api/crypto.html}、\url{https://nodejs.org/docs/latest-v24.x/api/sqlite.html}、\url{https://nodejs.org/docs/latest-v24.x/api/test.html}。项目使用版本见本轮环境记录，最新文档不代表已使用所有能力。
+%   \item SQLite 官方文档：事务与预写日志，\url{https://www.sqlite.org/lang_transaction.html}、\url{https://www.sqlite.org/wal.html}。报告中的数据结构来自\texttt{lib/db.mjs}，而非由官方示例推断。
+%   \item OMG Unified Modeling Language 2.5.1：\url{https://www.omg.org/spec/UML/2.5.1/}。本项目业务实现为函数式ES模块，用例图和实体关系图用于解释设计，不伪造面向对象实现类。
+%   \item 项目原始来源：\texttt{README.md}、\texttt{VERIFICATION.md}、\texttt{package.json}、\texttt{server.mjs}、\texttt{lib/}、\texttt{public/}及\texttt{tests/}。历史文档位于\texttt{需求分析/}，非功能测试工具位于\texttt{scripts/}。
+%   \item 场景与人物素材制作说明：项目\texttt{docs/watercolor-assets.md}记录既有素材及提示词。报告截图使用隔离账号和项目自带插画，不使用真实用户私有图片，也不把“项目自带”表述成公版或另行获得自由授权。
+% \end{enumerate}
+% 
+% \section*{附录A：证据目录与复现口径}
+% 本附录以2026年11月4日当前源码为依据，列出可定位的实现与断言，并归档带日期的历史性能。节选是从真实源文件复制的连续片段，保留原变量、控制流和SQL，不是伪代码，不包含整份应用，也不应脱离导入、调用方和数据库结构独立运行。代码行号对应本次核查的源文件，不保证后续编辑后仍不变。节选中未加入隐去分支的省略号；外部依赖与节选范围在说明中标明。
+% 
+% \begin{table}[H]
+%   \centering
+%   \caption{证据索引与可复核内容}
+%   \label{tab:appendix-evidence}
+%   {\songti\rmfamily\zihao{5}
+%   \begin{tabular}{@{}p{.36\textwidth}p{.54\textwidth}@{}}
+%     \toprule
+%     文件或来源 & 核验内容 \\
+%     \midrule
+%     第02章需求与第04章矩阵 & FR-01至FR-15、IT-01至IT-15与实际测试文件的映射，编号为报告整理。 \\
+%     \texttt{package.json} & test仅运行\texttt{tests/*.test.mjs}；benchmark、展示与统计命令独立。 \\
+%     \texttt{tests/} & 规则、数据库与HTTP断言；另有浏览器脚本，不能由npm test的通过数代替。 \\
+%     \texttt{scripts/count-source.mjs} & 逐文件物理行/非空行、分类合计及排除清单。 \\
+%     \texttt{VERIFICATION.md} & 2026-10-31历史非功能结果、性能、运行环境及工作区状态；更早视觉记录单列日期。 \\
+%     \texttt{assets/report/regression.txt} & 2026-11-04，Windows/Node.js v24.13.0：120通过、0失败、3049.829 ms；取消、跳过和待办均为零。 \\
+%     \texttt{assets/report/source-count.txt} & 2026-11-04统计归档：后端3159、前端3061、CSS 4614、HTML 4、测试1960物理行；与第04章合计一致。 \\
+%     \texttt{assets/report/}五张PNG & 2026-11-04隔离场景截图生成及图像检查通过；不替代完整浏览器脚本的交互断言。 \\
+%     Git最近五条实际记录 & 第04章表\ref{tab:implementation-git-history}列出提交、作者日期、作者和原始标题；当前工作区并非干净状态。 \\
+%     \bottomrule
+%   \end{tabular}}
+% \end{table}
+% 
+% 以下命令在项目根目录使用PowerShell执行。\texttt{npm test}开展隔离业务回归，本轮运行结果已有原始输出归档；统计结果另有逐文件归档。非功能展示另建运行目录和SQLite测试库，不读取日常\texttt{.env}，上游全部模拟，本轮未重跑，相关结果仍采用2026-10-31历史记录。浏览器需要预先配置测试工具及Chrome，具体命令与环境以各脚本和\texttt{VERIFICATION.md}为准；截图生成通过不等于这些独立浏览器脚本全部执行通过。
+% 
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% node --version
+% git rev-parse HEAD
+% git status --short
+% git log -5 --date=iso-strict --format="%h | %ad | %an | %s"
+% npm test
+% npm run count:source
+% npm run count:source -- --json
+% npm run showcase:nonfunctional
+% npm run showcase:nonfunctional -- --section=security
+% npm run showcase:nonfunctional -- --section=errors
+% npm run showcase:nonfunctional -- --section=robustness
+% npm run benchmark
+% \end{lstlisting}
+% 
+% 历史完整展示结果记录于\texttt{runtime/nonfunctional/}下的运行目录\texttt{2026-10-31T08-20-15-184Z-25a5a154/}，\texttt{results.json}保存结构化数据，\texttt{summary.txt}为中文摘要，\texttt{app.db}是独立测试库。该路径来自验证记录，本次未据此假定所有忽略目录文件均可取得。缺失时应重新隔离运行并保留新日期结果，不能补造原日志。结果环境字段包括Node版本、平台、CPU、Git版本、工作区状态、数据库与模拟上游口径，能够防止把不同环境的测量混合。
+% 
+% \section*{附录B：关键实现的真实代码节选}
+% 以下列表采用\texttt{listings}环境，\texttt{language=\{\}}表示不依赖额外的JavaScript语法配置。各节注明真实源文件、连续节选范围及其在完整调用链中的作用。
+% 
+% \subsection*{B.1 密码与会话摘要（FR-01）}
+% 来源：\texttt{lib/auth.mjs}第35--53行。密码使用调用方传入的账号独立盐，scrypt产生64字节摘要；会话令牌为32随机字节的URL安全编码，仅存SHA-256摘要。完整认证还需要同文件的\texttt{verifyPassword()}、\texttt{login()}及\texttt{resolveSession()}，摘要本身不替代权限检查。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% export function hashPassword(password, salt) {
+%   return scryptSync(password, salt, 64).toString('hex');
+% }
+% 
+% /**
+%  * 生成供浏览器持有的高熵会话令牌。
+%  * 使用 URL 安全编码，避免普通 Base64 中的特殊字符进入 Cookie 值。
+%  */
+% export function newToken() {
+%   return randomBytes(32).toString('base64url');
+% }
+% 
+% /**
+%  * 将会话令牌转换为固定长度 SHA-256 摘要。
+%  * 保存和查找会话均使用此摘要，原始令牌只交给浏览器。
+%  */
+% export function hashToken(token) {
+%   return createHash('sha256').update(String(token)).digest('hex');
+% }
+% \end{lstlisting}
+% 
+% \subsection*{B.2 双向匹配与事务（FR-02、FR-03）}
+% 资料保存边界（源码核查）：\texttt{lib/matching.mjs}的\texttt{saveMatchingProfile()}只接收两段介绍，SQL写入介绍、标签状态与时间，不保存同意字段。注册/资料路由的请求同意检查不是持久授权记录；\texttt{analyzeProfile()}返回后比较介绍是否改变，也不是授权撤回或授权版本校验。IT-02中的资料并发变更和授权生命周期应列为待测/能力边界，不能从标签提取测试推断已实现完整同意管理。
+% 
+% 来源：\texttt{lib/matching.mjs}第164--174行。两方向都必须有交集，平均值取整。调用前的固定词表、非空数量及去重检查由资料解析完成，不能向此函数传入任意未校验对象。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% export function matchScore(a, b) {
+%   // 分别计算双方期望被满足的比例；任一方向没有交集时不予匹配。
+%   const towardB =
+%     a.desiredTags.filter((t) => b.selfTags.includes(t)).length /
+%     a.desiredTags.length;
+%   const towardA =
+%     b.desiredTags.filter((t) => a.selfTags.includes(t)).length /
+%     b.desiredTags.length;
+%   if (!towardA || !towardB) return 0;
+%   return Math.round((100 * (towardA + towardB)) / 2);
+% }
+% \end{lstlisting}
+% 
+% 来源：\texttt{lib/draw.mjs}第224--234行。同步立即写事务仅在回调全部成功后提交，错误回滚。\texttt{draw()}、\texttt{decide()}和\texttt{remove()}共用此封装；不是在外部模型等待期间长期持有该写事务。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% function transaction(db, fn) {
+%   db.exec('BEGIN IMMEDIATE');
+%   try {
+%     const value = fn();
+%     db.exec('COMMIT');
+%     return value;
+%   } catch (e) {
+%     db.exec('ROLLBACK');
+%     throw e;
+%   }
+% }
+% \end{lstlisting}
+% 
+% 来源：\texttt{lib/draw.mjs}第272--281行，位于\texttt{draw()}内部，\texttt{pool}是已筛选候选，\texttt{pick}默认使用\texttt{randomInt(total)}，测试可注入票号。该连续片段只展示加权选择；后续同事务写入结果快照、前置待决定复用见完整源码。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% const total = pool.reduce((n, p) => n + p.score, 0);
+% let ticket = pick(total),
+%   chosen = pool.at(-1);
+% for (const p of pool) {
+%   ticket -= p.score;
+%   if (ticket < 0) {
+%     chosen = p;
+%     break;
+%   }
+% }
+% \end{lstlisting}
+% 
+% \subsection*{B.3 真人消息参与者检查（FR-06）}
+% 来源：\texttt{lib/real-chat.mjs}第242--261行。\texttt{conversation()}负责在写入前验证当前账号参与会话；\texttt{content()}限制正文。\texttt{sender\_id}由当前登录账号写入，不能由请求正文指定，更没有模型代替真人发言。纸条接受的事务建会话另见第188--236行。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% export function sendRealMessage(
+%   db,
+%   userId,
+%   conversationId,
+%   body,
+%   now = Date.now()
+% ) {
+%   const text = content(body, 500),
+%     row = conversation(db, userId, conversationId);
+%   const result = db
+%     .prepare(
+%       'INSERT INTO real_messages(conversation_id,sender_id,body,created_at) VALUES(?,?,?,?)'
+%     )
+%     .run(row.id, userId, text, now);
+%   db.prepare('UPDATE real_conversations SET updated_at=? WHERE id=?').run(
+%     now,
+%     row.id
+%   );
+%   return Number(result.lastInsertRowid);
+% }
+% \end{lstlisting}
+% 
+% \subsection*{B.4 情绪与资源回退（FR-09）}
+% 来源：\texttt{public/portraits.mjs}第20--40行。\texttt{PORTRAIT\_EMOTIONS}为六种情绪白名单；置信度必须为70至100的整数。选择函数还核对资源存在；版本为零时由界面显示无图回退。情绪输入的消息编号校验由\texttt{generateGuidance()}完成，而非在该纯选择函数中完成。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% export function portraitEmotion(analysis) {
+%   return PORTRAIT_EMOTIONS.some(([id]) => id === analysis?.label) &&
+%     Number.isInteger(analysis?.confidence) &&
+%     analysis.confidence >= 70 &&
+%     analysis.confidence <= 100
+%     ? analysis.label
+%     : 'default';
+% }
+% 
+% /**
+%  * 结合情绪判断与人物已上传的资源版本选择图片。
+%  * 对应情绪没有资源时回退默认版本，返回值供页面生成带版本号的地址。
+%  */
+% export function portraitSelection(person, analysis) {
+%   // 优先采用已上传的对应表情；缺少资源时回退到默认立绘版本。
+%   const emotion = portraitEmotion(analysis),
+%     version = person.portraitEmotions?.[emotion];
+%   return version
+%     ? { emotion, version }
+%     : { emotion: 'default', version: person.portraitVersion || 0 };
+% }
+% \end{lstlisting}
+% 
+% \subsection*{B.5 生图预览的版本校验与保存（FR-11）}
+% 来源：\texttt{lib/portrait-generation.mjs}第120--134行，是\texttt{createPortraitGeneration()}的内部\texttt{apply()}。\texttt{find()}按账号与任务共同查找，\texttt{hash()}计算默认图摘要。就绪前不能保存；就绪后仍需默认图及情绪目标版本一致，保存图片与任务状态一起提交，随后清除预览字节。此实现并不省去用户对图片内容的人工确认。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% function apply(userId,id){
+%  const job=find(userId,id);
+%  if(job.status==='saved')return {media:mediaStatus(db,userId),...state(userId)};
+%  if(job.status!=='ready')throw new ApiError('这张立绘尚不能保存。',409,'CONFLICT');
+% 
+%  // 默认图或目标情绪曾被替换时拒绝旧预览，避免覆盖用户更新的资源。
+%  const current=getMedia(db,userId,'portrait'),version=mediaStatus(db,userId).portraitEmotions[job.emotion]||0;
+%  if(!current||hash(current.bytes)!==job.source_hash||version!==job.target_version)throw new ApiError('默认立绘或该情绪图片已更换，请放弃旧预览后重新生成。',409,'IMAGE_STALE');
+%  db.exec('BEGIN IMMEDIATE');
+%  try{
+%   saveMedia(db,userId,'portrait','data:image/png;base64,'+Buffer.from(job.bytes).toString('base64'),job.emotion);
+%   db.prepare("UPDATE portrait_generation_jobs SET status='saved',bytes=NULL WHERE id=?").run(id);db.exec('COMMIT');
+%  }catch(error){db.exec('ROLLBACK');throw error}
+%  return {media:mediaStatus(db,userId),...state(userId)};
+% }
+% \end{lstlisting}
+% 
+% \section*{附录C：真实测试断言与检查定位}
+% \subsection*{C.1 待决定复用与同日继续抽取}
+% 来源：\texttt{tests/draw.test.mjs}第26--35行。\texttt{fixture()}准备内存库和就绪账号，\texttt{now}为固定时间；断言不仅验证重复抽取，还覆盖跨日复用、重复喜欢、虚拟日期推进/重置不改变抽取口径，以及决定后同日新增记录。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% test('unlimited same-day draws preserve pending results and idempotent decisions',t=>{
+%  const {db,a}=fixture(t),one=draw(db,a.user.id,now,()=>0);assert.equal(one.remaining,null);assert.equal(one.unlimited,true);
+%  assert.equal(draw(db,a.user.id,now,()=>100).pending.drawId,one.pending.drawId);
+%  assert.equal(draw(db,a.user.id,now+86400000).pending.drawId,one.pending.drawId);
+%  decide(db,a.user.id,one.pending.drawId,'like',now);decide(db,a.user.id,one.pending.drawId,'like',now);
+%  assert.equal(drawState(db,a.user.id,now).collection.length,1);assert(drawState(db,a.user.id,now).canDraw);
+%  runAction(db,a.user,'advance',{days:30},now);runAction(db,a.user,'reset',{},now);
+%  assert.equal(drawState(db,a.user.id,now).remaining,null);assert.equal(drawState(db,a.user.id,now).collection.length,1);
+%  const two=draw(db,a.user.id,now,()=>0);assert.notEqual(two.pending.drawId,one.pending.drawId);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM draw_records WHERE user_id=? AND day=?').get(a.user.id,drawDay(now)).n,2);
+% });
+% \end{lstlisting}
+% 
+% \subsection*{C.2 私有预览、越权拒绝与幂等保存}
+% 来源：\texttt{tests/portrait-generation.test.mjs}第24--30行，位于“generation uses stored own reference, remains a private preview, and saves only on confirmation”测试内部；\texttt{fixture()}在此前注入模拟上游PNG。\texttt{a}为所有者，\texttt{b}为其他账号，\texttt{finished()}轮询任务完成。连续断言展示请求幂等、预览阶段未写目标槽、越权404、透明像素、确认后saved及字节释放。
+% \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+% const request=input(),job=service.start(a,request);assert.equal(service.start(a,request).id,job.id);assert.equal(calls,1);
+% assert.throws(()=>service.start(a,input()),e=>e.code==='IMAGE_PENDING');
+% assert.equal((await finished(service,a)).status,'ready');assert.equal(mediaStatus(db,a).portraitEmotions.happy,undefined);
+% assert.throws(()=>service.image(b,job.id),e=>e.status===404);assert.throws(()=>service.apply(b,job.id),e=>e.status===404);
+% assert(decodePortraitPng(Buffer.from(service.image(a,job.id))).pixels[3]===0);
+% assert(service.apply(a,job.id).media.portraitEmotions.happy);assert.equal(service.apply(a,job.id).job.status,'saved');
+% assert.equal(db.prepare('SELECT bytes FROM portrait_generation_jobs WHERE id=?').get(job.id).bytes,null);
+% \end{lstlisting}
+% 
+% \subsection*{C.3 其他关键测试的定位}
+% 认证的\texttt{logging in on a second device kicks the first one off}测试同时检查旧会话\texttt{replaced}、新会话有效及库内有效会话数为一；\texttt{core.test.mjs}中的\texttt{replies retry without duplicate user message, both directions}检查重复发送拒绝、回复只增一条及重复完成返回false。\texttt{mutual outcome requires current explicit consent and spends once}与撤回/屏蔽用例检查跨期重新授权、不合资格不耗次数。
+% 
+% \texttt{server.test.mjs}的\texttt{private data is excluded from upstream messages}核对上游不含私人分数、授权字段及密钥；\texttt{full AI capacity still permits profile saves and manual messages}使用挂起模型请求验证普通业务与文本四并发额度分离。\texttt{favorability.test.mjs}中的\texttt{privacy switch: reciprocal visibility enforcement}及HTTP API用例核对双方开关与参与者权限。媒体分离测试验证旧头像迁移只执行一次、保留历史资源且不挪用作新立绘。这些定位与第04章矩阵共同使用，不把测试标题本身当作执行日志。
+% 
+% \subsection*{C.4 断言范围与源码边界}
+% 第04章每个IT场景均分别列出已有断言、源码与待测范围；同一例包含多个层次，不设整体“通过”状态。已有断言必须能在对应测试中定位，120项是归档框架统计，不能证明所有IT子场景已执行。历史非功能展示的五并发和失败重试不能当作本轮新增断言；当前抽取HTTP测试实际发出八个并发请求。
+% 
+% \texttt{actions.test.mjs}的reset测试只断言虚拟纸条清空、偏移归零、展示名回到用户名及账号存续；\texttt{draw.test.mjs}另断言reset后收藏数量不变。源码\texttt{ACTIONS.reset}调用\texttt{freshState()}、\texttt{defaultProfile()}并覆盖虚拟状态，\texttt{writeState()}只更新users资料与states；不删除真人纸条/会话/消息、收藏/抽取、匹配资料或媒体。真人和媒体完整保留的专门断言、页面二次确认及在途请求与重置竞态仍属待测，不把测试标题中的“interactions”扩张为全部业务数据。
+% 
+% 真人参考分的隐私测试采用顺序切换：先开启并读取/分析，完成后关闭再读取，核对隐藏；没有在模型挂起期间关闭任一方开关的断言。源码\texttt{/api/real/favorability/analyze}在模型请求前读取双方开关，但\texttt{await completion()}之后不复查，直接写\texttt{conversation\_favorability}并返回\texttt{canView:true}。在途关闭不能撤回已外发内容，且原响应仍可能给出结果；后续GET隐藏不等于在途撤回保护。该缺口属于源码发现，动态竞态验证待测，未因本轮120项通过而消失。
+% 
+% \section*{附录D：历史性能明细（2026-10-31）}
+% 以下全部数字抄录\texttt{VERIFICATION.md}的2026年10月31日记录，环境为Core Ultra 7 155H、WSL2 Linux 6.6.87.2、Node.js v24.21.0，数据库位于E盘独立测试目录，SQLite文件库启用WAL。每组预热20次、正式100次，准备及预热不计时；每组正式执行前重置初始消息规模，发送组再新增100条。客户端与服务端为不同进程，使用模拟模型，未测真实推理、生图或公网延迟。表中“读”指真人快照，不是无限历史分页；每行错误均为0/100。
+% 
+% \begin{table}[H]
+%   \centering
+%   \caption{2026-10-31 历史性能：并发1}
+%   \label{tab:appendix-performance-one}
+%   {\songti\rmfamily\zihao{5}
+%   \begin{tabular}{@{}rlrrrrr@{}}
+%     \toprule
+%     初始消息 & 接口 & 平均/ms & P50/ms & P95/ms & 成功请求/秒 & 错误 \\
+%     \midrule
+%     100 & 状态 & 0.83 & 0.72 & 1.37 & 1206.20 & 0/100 \\
+%     100 & 账号 & 4.33 & 4.31 & 5.30 & 230.83 & 0/100 \\
+%     100 & 读 & 5.78 & 5.77 & 6.88 & 172.94 & 0/100 \\
+%     100 & 发 & 13.25 & 13.09 & 15.24 & 75.45 & 0/100 \\
+%     1000 & 状态 & 0.40 & 0.38 & 0.57 & 2521.92 & 0/100 \\
+%     1000 & 账号 & 4.54 & 4.38 & 6.36 & 220.06 & 0/100 \\
+%     1000 & 读 & 5.65 & 5.52 & 6.96 & 176.95 & 0/100 \\
+%     1000 & 发 & 12.76 & 12.18 & 15.37 & 78.37 & 0/100 \\
+%     \bottomrule
+%   \end{tabular}}
+% \end{table}
+% 
+% \begin{table}[H]
+%   \centering
+%   \caption{2026-10-31 历史性能：并发10}
+%   \label{tab:appendix-performance-ten}
+%   {\songti\rmfamily\zihao{5}
+%   \begin{tabular}{@{}rlrrrrr@{}}
+%     \toprule
+%     初始消息 & 接口 & 平均/ms & P50/ms & P95/ms & 成功请求/秒 & 错误 \\
+%     \midrule
+%     100 & 状态 & 2.54 & 2.42 & 3.29 & 3725.35 & 0/100 \\
+%     100 & 账号 & 35.42 & 30.06 & 64.25 & 268.69 & 0/100 \\
+%     100 & 读 & 50.31 & 41.61 & 94.18 & 190.26 & 0/100 \\
+%     100 & 发 & 122.96 & 103.06 & 221.54 & 77.57 & 0/100 \\
+%     1000 & 状态 & 2.33 & 2.09 & 4.34 & 4160.91 & 0/100 \\
+%     1000 & 账号 & 31.45 & 27.21 & 57.56 & 302.86 & 0/100 \\
+%     1000 & 读 & 43.39 & 36.53 & 77.90 & 219.30 & 0/100 \\
+%     1000 & 发 & 111.58 & 92.20 & 201.49 & 85.55 & 0/100 \\
+%     \bottomrule
+%   \end{tabular}}
+% \end{table}
+% 
+% “状态、账号、读、发”分别对应\texttt{GET /api/status}、\texttt{GET /api/me}、\texttt{GET /api/real}与\texttt{POST /api/real/message}。16组正式请求合计1600次、无失败；平均与分位数只按成功请求计算，P50/P95按排序后最近秩取值，吞吐用成功数除以该批次墙钟时间，不用\texttt{1000/平均耗时}替代并发吞吐。历史非功能检查19项通过与历史回归120项通过属于另外两种统计；2026-11-04归档回归的3049.829 ms也不是此表中任一列。
+% 
+% \section*{附录E：本轮截图与待验证范围}
+% 五张截图于2026年11月4日通过隔离场景生成，经PNG文件头核对，原图均为1440$\times$1000像素，存放于\texttt{assets/report/}。图像检查确认文件可读且呈现对应页面；表\ref{tab:appendix-screenshots}记录实际可见内容而不推断图外操作。截图采用演示场景，消息、情绪和参考值不构成真实心理或真实模型质量证据。
+% 
+% \begin{table}[H]
+%   \centering
+%   \caption{2026-11-04 五张隔离截图的检查索引}
+%   \label{tab:appendix-screenshots}
+%   {\songti\rmfamily\zihao{5}
+%   \begin{tabular}{@{}p{.15\textwidth}p{.40\textwidth}p{.35\textwidth}@{}}
+%     \toprule
+%     文件 & 已检查的可见内容 & 不能由该图单独确认的行为 \\
+%     \midrule
+%     \texttt{login.png} & 登录表单、账号单会话说明、注册入口。 & 注册成功、非法凭据拒绝、旧设备会话失效。 \\
+%     \texttt{meet.png} & 不限次数标识、暂无合适候选提示、档位说明及4/5收藏占位。 & 加权抽取、并发复用、喜欢/跳过/冷却与刷新恢复。 \\
+%     \texttt{notes.png} & 真人纸条、已回信状态、真人对话入口与虚拟人物分区。 & 角色权限、拒绝不建会话、接受的事务原子性及实时更新。 \\
+%     \texttt{chat.png} & 演示对象、消息、三项建议和自己输入、风格选项、开心标识及参考分。 & 建议仅填草稿、消息/风格竞态、轮询、失败恢复及模型真实性。 \\
+%     \texttt{media.png} & 媒体弹窗、背景/头像/默认立绘的独立入口、上传限制与当前预览。 & 上传持久化、全部情绪槽、生图授权、私有预览及确认保存。 \\
+%     \bottomrule
+%   \end{tabular}}
+% \end{table}
+% 
+% \subsection*{E.1 回归归档与读取范围}
+% \texttt{assets/report/regression.txt}包含\texttt{npm test}的测试标题、单项耗时和框架汇总；末尾汇总为tests 120、suites 0、pass 120、fail 0、cancelled 0、skipped 0、todo 0、duration\_ms 3049.829。Windows和Node.js v24.13.0为本轮记录的执行环境，不把单项测试耗时或总耗时作为接口性能指标。\texttt{source-count.txt}为统计命令的逐文件JSON输出（含npm命令头），其中主体业务6220行、应用源码10838行；其物理行和非空行均可能包含注释。
+% 
+% 环境与工作区旁证保存在\texttt{assets/report/provenance.txt}，采集时间为2026-11-04 19:42（UTC+8），包含操作系统内核标识、PowerShell版本、Node.js版本、Git HEAD、非干净工作区列表，以及主体源码和回归文件的SHA-256摘要。它在回归之后采集，不能伪称回归日志本身内嵌了时间和版本；本次没有修改业务源文件，摘要用于后续判断文件是否已变化。HEAD为\texttt{9d18f30668073a988bf5e1181b8c288e370faddf}，不代表未提交内容已经进入该提交。
+% 
+% \subsection*{E.2 尚需独立验证的能力}
+% 除浏览器复测外，IT各例仍有独立覆盖缺口：匹配资料在途变化与同意生命周期、真人纸条额度和拒绝/事务故障、真人模型故障下手动发送、重置后真人及媒体完整保留，以及参考分分析在途关闭。对已由源码确认不存在的持久同意或返回后开关复查，不能写成“已通过、仅待截图”；待测表示证据不足，不表示业务缺口已修复。
+% 
+% 本轮已归档自动化业务回归、源码规模和五张页面截图，但完整浏览器回归尚未整套重跑。消息/风格竞态、建议只填草稿、会话失效后的草稿恢复、重置二次确认、生图授权与预览保存，以及移动端多视口、键盘焦点和减少动态效果仍需对应版本的脚本输出。真实模型兼容性、文本质量、人物一致性及授权外发载荷应另记服务配置范围与人工检查；更高负载、无障碍和生产安全不能由历史性能或截图推导。
+% 
+% 历史2026-09-26的“没有真实多人通信”只描述当时版本，当前源码已实现账号间文字通信；当前仍没有真实身份核验、生产审核、端到端加密或公网生产保障。未执行的检查不填通过，提交历史不等于部署记录，行数和截图数量也不等于个人贡献量。
+%
 
-\section*{技术资料与来源说明}
-本报告的产品事实以当前项目源码、测试和归档输出为首要来源；需求分析及软件设计历史提交包仅用于追溯，若与当前实现不同，以当前源码及明确版本说明为准。NABCD用于组织需求、方法、收益、替代方案和交付渠道的定性分析，不据此宣称已经完成市场调研。以下官方资料用于解释术语与机制，项目实际采用范围仍以源码为准。
-\begin{enumerate}
-  \item Node.js 官方文档：HTTP、Crypto、SQLite 与测试框架。参考入口为 \url{https://nodejs.org/docs/latest-v24.x/api/http.html}、\url{https://nodejs.org/docs/latest-v24.x/api/crypto.html}、\url{https://nodejs.org/docs/latest-v24.x/api/sqlite.html}、\url{https://nodejs.org/docs/latest-v24.x/api/test.html}。项目使用版本见本轮环境记录，最新文档不代表已使用所有能力。
-  \item SQLite 官方文档：事务与预写日志，\url{https://www.sqlite.org/lang_transaction.html}、\url{https://www.sqlite.org/wal.html}。报告中的数据结构来自\texttt{lib/db.mjs}，而非由官方示例推断。
-  \item OMG Unified Modeling Language 2.5.1：\url{https://www.omg.org/spec/UML/2.5.1/}。本项目业务实现为函数式ES模块，用例图和实体关系图用于解释设计，不伪造面向对象实现类。
-  \item 项目原始来源：\texttt{README.md}、\texttt{VERIFICATION.md}、\texttt{package.json}、\texttt{server.mjs}、\texttt{lib/}、\texttt{public/}及\texttt{tests/}。历史文档位于\texttt{需求分析/}，非功能测试工具位于\texttt{scripts/}。
-  \item 场景与人物素材制作说明：项目\texttt{docs/watercolor-assets.md}记录既有素材及提示词。报告截图使用隔离账号和项目自带插画，不使用真实用户私有图片，也不把“项目自带”表述成公版或另行获得自由授权。
-\end{enumerate}
+% Current appendix used by report.tex.
+% Standalone appendix chapter; shared typography comes from reportstyle.sty.
+\appendix
+\chapter{设计补充资料}
+\label{chap:appendix-design-compact}
 
-\section*{附录A：证据目录与复现口径}
-本附录以2026年11月4日当前源码为依据，列出可定位的实现与断言，并归档带日期的历史性能。节选是从真实源文件复制的连续片段，保留原变量、控制流和SQL，不是伪代码，不包含整份应用，也不应脱离导入、调用方和数据库结构独立运行。代码行号对应本次核查的源文件，不保证后续编辑后仍不变。节选中未加入隐去分支的省略号；外部依赖与节选范围在说明中标明。
+\section{接口摘要}
+本节按业务分组摘录代表接口，不是全量路由清单。路径相对服务根地址；
+除公开状态、注册和登录外，业务接口需要有效的 \DesignCode{hw_session} Cookie。
+POST 接口接受同源 JSON；成功响应直接返回业务对象，不统一套 \DesignCode{data}，
+图片读取返回二进制。失败 JSON 含 \DesignCode{error} 和 \DesignCode{code}。
 
-\begin{table}[H]
-  \centering
-  \caption{证据索引与可复核内容}
-  \label{tab:appendix-evidence}
-  {\songti\rmfamily\zihao{5}
-  \begin{tabular}{@{}p{.36\textwidth}p{.54\textwidth}@{}}
-    \toprule
-    文件或来源 & 核验内容 \\
-    \midrule
-    第02章需求与第04章矩阵 & FR-01至FR-15、IT-01至IT-15与实际测试文件的映射，编号为报告整理。 \\
-    \texttt{package.json} & test仅运行\texttt{tests/*.test.mjs}；benchmark、展示与统计命令独立。 \\
-    \texttt{tests/} & 规则、数据库与HTTP断言；另有浏览器脚本，不能由npm test的通过数代替。 \\
-    \texttt{scripts/count-source.mjs} & 逐文件物理行/非空行、分类合计及排除清单。 \\
-    \texttt{VERIFICATION.md} & 2026-10-31历史非功能结果、性能、运行环境及工作区状态；更早视觉记录单列日期。 \\
-    \texttt{assets/report/regression.txt} & 2026-11-04，Windows/Node.js v24.13.0：120通过、0失败、3049.829 ms；取消、跳过和待办均为零。 \\
-    \texttt{assets/report/source-count.txt} & 2026-11-04统计归档：后端3159、前端3061、CSS 4614、HTML 4、测试1960物理行；与第04章合计一致。 \\
-    \texttt{assets/report/}五张PNG & 2026-11-04隔离场景截图生成及图像检查通过；不替代完整浏览器脚本的交互断言。 \\
-    Git最近五条实际记录 & 第04章表\ref{tab:implementation-git-history}列出提交、作者日期、作者和原始标题；当前工作区并非干净状态。 \\
-    \bottomrule
-  \end{tabular}}
-\end{table}
+\begingroup
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{.28\linewidth}>{\raggedright\arraybackslash}p{.29\linewidth}>{\raggedright\arraybackslash}p{\dimexpr.43\linewidth-12pt\relax}@{}}
+\caption{分组接口及代表输入、输出与错误}\label{tab:compact-api}\\
+\toprule 方法与路径 & 代表输入 & 输出及特殊约束 \\ \midrule\endfirsthead
+\multicolumn{3}{l}{表\thetable（续）}\\
+\toprule 方法与路径 & 代表输入 & 输出及特殊约束 \\ \midrule\endhead
+\midrule\multicolumn{3}{r}{接下页}\\\endfoot
+\bottomrule\endlastfoot
+\multicolumn{3}{l}{\textbf{身份与启动快照}}\\ \midrule
+POST \DesignCode{/api/register} & \DesignCode{username}、\DesignCode{password}、两段介绍、\DesignCode{shareForMatching=true} & \DesignCode{user}、\DesignCode{matchingProfile}，设置 Cookie；标签失败不撤销账号。\\
+POST \DesignCode{/api/login}；GET \DesignCode{/api/me} & 登录用用户名、密码；快照用 Cookie & 登录返回 \DesignCode{user}、\DesignCode{replacedDevice}；快照含状态、匹配资料、媒体版本及模型可用性。\\
+\multicolumn{3}{l}{\textbf{匹配与抽取}}\\ \midrule
+POST \DesignCode{/api/match-profile} & \DesignCode{selfIntro}、\DesignCode{desiredIntro}、展示同意 & 清旧标签后分析；返回资料及 \DesignCode{matchingError}，失败可重试。\\
+GET / POST \DesignCode{/api/draw}；POST \DesignCode{/api/draw/decision} & 抽取无业务字段；决定用 \DesignCode{drawId}、\DesignCode{decision=like/skip} & 返回抽取状态；复用待决定结果，已处理决定可重复提交。空池或满收藏返回409。\\
+\multicolumn{3}{l}{\textbf{真人通信与交流参考}}\\ \midrule
+GET \DesignCode{/api/real}；POST \DesignCode{/api/real/note} & 读取用 Cookie；发纸条用 \DesignCode{recipientId}、\DesignCode{text} & 返回纸条和会话快照；发纸条要求真人收藏、接收许可及100字内正文。\\
+POST \DesignCode{/api/real/respond}；POST \DesignCode{/api/real/message} & 回应用 \DesignCode{noteId}、接受/拒绝及回信；聊天用 \DesignCode{conversationId}、正文 & 接受返回会话编号及快照；仅收件人回应，仅参与者发消息，聊天限500字。\\
+GET \DesignCode{/api/real/favorability}；POST \DesignCode{/api/real/favorability/analyze} & GET 查询或 POST 正文中的 \DesignCode{conversationId} & 双方开关控制 \DesignCode{canView}；读取缓存/规则，主动分析失败降级规则。\\
+\multicolumn{3}{l}{\textbf{虚拟互动与 AI 辅助}}\\ \midrule
+POST \DesignCode{/api/action}；POST \DesignCode{/api/reply} & 动作用 \DesignCode{type} 及参数；回复用 \DesignCode{personId} & 动作返回 \DesignCode{state}、\DesignCode{result}，不接受整份状态；回复按已存历史生成并落库。\\
+POST \DesignCode{/api/suggestions}；POST \DesignCode{/api/guidance} & 草稿、上下文、风格；理解用人物/会话编号及 \DesignCode{messageId} & 三条建议；理解还含解释、情绪、消息及风格标识。生成不自动代发，过期消息拒绝分析。\\
+\multicolumn{3}{l}{\textbf{媒体上传与立绘生成}}\\ \midrule
+POST \DesignCode{/api/media} & \DesignCode{action=save/delete}、用途、情绪；保存用 Data URL & 返回 \DesignCode{media} 摘要；头像、背景、立绘分开管理，校验签名和大小。\\
+POST \DesignCode{/api/portraits/generate}；GET \DesignCode{/api/portraits/generation} & 创建用 \DesignCode{emotion}、\DesignCode{consent=true}、\DesignCode{requestId} & 创建返回202及 \DesignCode{job}；查询本人最近任务和可用性；已有待处理任务返回409。\\
+POST \DesignCode{/api/portraits/apply}；GET \DesignCode{/api/portraits/generation/:id/image} & 确认用 \DesignCode{jobId}；预览用本人任务编号 & 确认核对参考图及目标版本，重复保存幂等；仅就绪预览返回 PNG，旧版本返回409。\\
+\end{longtable}
+\endgroup
 
-以下命令在项目根目录使用PowerShell执行。\texttt{npm test}开展隔离业务回归，本轮运行结果已有原始输出归档；统计结果另有逐文件归档。非功能展示另建运行目录和SQLite测试库，不读取日常\texttt{.env}，上游全部模拟，本轮未重跑，相关结果仍采用2026-10-31历史记录。浏览器需要预先配置测试工具及Chrome，具体命令与环境以各脚本和\texttt{VERIFICATION.md}为准；截图生成通过不等于这些独立浏览器脚本全部执行通过。
+共通错误包括400 \DesignCode{INVALID_INPUT}、401 \DesignCode{UNAUTHENTICATED}/
+\DesignCode{SESSION_REPLACED}、403 \DesignCode{FORBIDDEN}、404 \DesignCode{NOT_FOUND}、
+413 \DesignCode{TOO_LARGE}及429 \DesignCode{BUSY}/\DesignCode{RATE_LIMITED}。
+文本上游失败通常为502（如 \DesignCode{TIMEOUT}、\DesignCode{NETWORK}、\DesignCode{FORMAT}）；
+未配置服务为503。生图后台失败写入任务状态，不将上游原始响应直接交给浏览器。
+建议生成、用户消费和实际发送的控制流程见第\ref{sec:design-guidance}节。
 
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-node --version
-git rev-parse HEAD
-git status --short
-git log -5 --date=iso-strict --format="%h | %ad | %an | %s"
-npm test
-npm run count:source
-npm run count:source -- --json
-npm run showcase:nonfunctional
-npm run showcase:nonfunctional -- --section=security
-npm run showcase:nonfunctional -- --section=errors
-npm run showcase:nonfunctional -- --section=robustness
-npm run benchmark
-\end{lstlisting}
+\clearpage
+\section{数据表与关键字段索引}
+表\ref{tab:compact-data}覆盖18张应用表，仅列主键、关键外键和职责，不展开字段类型、
+默认值或虚拟状态内部结构。PK 表示主键，FK 表示声明外键；记 U 为 \DesignCode{users.id}，
+C 为 \DesignCode{real_conversations.id}。所有声明 FK 均级联删除；
+\DesignCode{sqlite_sequence} 是系统表，不计入18表。
 
-历史完整展示结果记录于\texttt{runtime/nonfunctional/}下的运行目录\texttt{2026-10-31T08-20-15-184Z-25a5a154/}，\texttt{results.json}保存结构化数据，\texttt{summary.txt}为中文摘要，\texttt{app.db}是独立测试库。该路径来自验证记录，本次未据此假定所有忽略目录文件均可取得。缺失时应重新隔离运行并保留新日期结果，不能补造原日志。结果环境字段包括Node版本、平台、CPU、Git版本、工作区状态、数据库与模拟上游口径，能够防止把不同环境的测量混合。
+\begingroup
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{.27\linewidth}>{\raggedright\arraybackslash}p{.37\linewidth}>{\raggedright\arraybackslash}p{\dimexpr.36\linewidth-12pt\relax}@{}}
+\caption{18张应用表的键与职责摘要}\label{tab:compact-data}\\
+\toprule 表名 & 主键与关键外键 & 职责及必要字段 \\ \midrule\endfirsthead
+\multicolumn{3}{l}{表\thetable（续）；U 为用户主键，C 为会话主键}\\
+\toprule 表名 & 主键与关键外键 & 职责及必要字段 \\ \midrule\endhead
+\midrule\multicolumn{3}{r}{接下页}\\\endfoot
+\bottomrule\endlastfoot
+1. \DesignCode{users} & PK \DesignCode{id}；无 FK & 账号、密码摘要及权威展示资料；\DesignCode{username} 唯一且不区分大小写。\\
+2. \DesignCode{sessions} & PK \DesignCode{token_hash}；FK \DesignCode{user_id} $\to$ U & 服务端会话；\DesignCode{active}、\DesignCode{expires_at} 控制有效性。\\
+3. \DesignCode{states} & PK/FK \DesignCode{user_id} $\to$ U & 虚拟互动 \DesignCode{json}，不存权威 \DesignCode{profile}。\\
+4. \DesignCode{login_attempts} & PK \DesignCode{key}；无 FK & 全局失败窗口；\DesignCode{failures}、\DesignCode{first_at}。\\
+5. \DesignCode{matching_profiles} & PK/FK \DesignCode{user_id} $\to$ U & 两段介绍及本人/期望标签；\DesignCode{status} 表示标签就绪性。\\
+6. \DesignCode{draw_records} & PK \DesignCode{id}；FK \DesignCode{user_id} $\to$ U & 抽取快照、\DesignCode{kind}、\DesignCode{person_id}、决定状态及归档日。\\
+7. \DesignCode{draw_collection} & PK (\DesignCode{user_id},\DesignCode{kind},\DesignCode{person_id})；FK \DesignCode{user_id} $\to$ U & 有方向的真人/虚拟收藏；\DesignCode{snapshot}、\DesignCode{added_at}。\\
+8. \DesignCode{draw_onboarding} & PK/FK \DesignCode{user_id} $\to$ U & 一次性演示收藏导入标记，移除后不补回。\\
+9. \DesignCode{draw_cooldowns} & PK (\DesignCode{user_id},\DesignCode{kind},\DesignCode{person_id})；FK \DesignCode{user_id} $\to$ U & 人物冷却到期值 \DesignCode{until_at}。\\
+10. \DesignCode{user_portraits} & PK (\DesignCode{user_id},\DesignCode{emotion})；FK \DesignCode{user_id} $\to$ U & 历史六情绪图片 BLOB 归档，不作当前聊天立绘。\\
+11. \DesignCode{user_sprites} & PK (\DesignCode{user_id},\DesignCode{emotion})；FK \DesignCode{user_id} $\to$ U & 默认及六情绪立绘 BLOB；\DesignCode{updated_at} 为单调版本。\\
+12. \DesignCode{app_migrations} & PK \DesignCode{name}；无 FK & 全库迁移标记，防止重复迁移。\\
+13. \DesignCode{portrait_generation_jobs} & PK \DesignCode{id}；FK \DesignCode{user_id} $\to$ U；唯一 (\DesignCode{user_id},\DesignCode{request_id}) & 任务状态、私有预览；\DesignCode{source_hash}、\DesignCode{target_version} 支持确认校验。\\
+14. \DesignCode{user_media} & PK (\DesignCode{user_id},\DesignCode{kind})；FK \DesignCode{user_id} $\to$ U & 头像/个人背景 BLOB，不含聊天立绘。\\
+15. \DesignCode{real_notes} & PK \DesignCode{id}；FK \DesignCode{sender_id}、\DesignCode{recipient_id} $\to$ U & 真人纸条正文、状态、投递及回应时间。\\
+16. \DesignCode{real_conversations} & PK \DesignCode{id}；FK \DesignCode{user_a}、\DesignCode{user_b} $\to$ U；唯一/FK \DesignCode{note_id} $\to$ \DesignCode{real_notes.id} & 双人会话；(\DesignCode{user_a},\DesignCode{user_b}) 唯一，应用先排序。\\
+17. \DesignCode{real_messages} & 自增 PK \DesignCode{id}；FK \DesignCode{conversation_id} $\to$ C、\DesignCode{sender_id} $\to$ U & 聊天正文与时间；编号用于最近消息及缓存水位。\\
+18. \DesignCode{conversation_favorability} & PK (\DesignCode{conversation_id},\DesignCode{target_user_id})；两项 FK 分别 $\to$ C、U & 方向性参考分、\DesignCode{factors}及 \DesignCode{last_message_id} 水位。\\
+\end{longtable}
+\endgroup
 
-\section*{附录B：关键实现的真实代码节选}
-以下列表采用\texttt{listings}环境，\texttt{language=\{\}}表示不依赖额外的JavaScript语法配置。各节注明真实源文件、连续节选范围及其在完整调用链中的作用。
+抽取相关 \DesignCode{person_id} 按 \DesignCode{kind} 解释，属于多态编号而非 FK；
+缓存 \DesignCode{last_message_id} 也不是 FK，可取0。会话双方不同、缓存目标为对方、
+消息发件人为参与者均由应用校验，不可仅凭声明外键推断。
 
-\subsection*{B.1 密码与会话摘要（FR-01）}
-来源：\texttt{lib/auth.mjs}第35--53行。密码使用调用方传入的账号独立盐，scrypt产生64字节摘要；会话令牌为32随机字节的URL安全编码，仅存SHA-256摘要。完整认证还需要同文件的\texttt{verifyPassword()}、\texttt{login()}及\texttt{resolveSession()}，摘要本身不替代权限检查。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-export function hashPassword(password, salt) {
-  return scryptSync(password, salt, 64).toString('hex');
-}
+\section{索引、额度与时间口径}
+以下为当前 DDL 的9个显式索引；主键和表内 UNIQUE 另提供键约束，不重复计数。
+\begingroup
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{.37\linewidth}>{\raggedright\arraybackslash}p{\dimexpr.63\linewidth-6pt\relax}@{}}
+\caption{9个显式索引的短定义与作用}\label{tab:compact-index}\\
+\toprule 索引名 & 定义与用途 \\ \midrule\endfirsthead
+\multicolumn{2}{l}{表\thetable（续）}\\
+\toprule 索引名 & 定义与用途 \\ \midrule\endhead
+\midrule\multicolumn{2}{r}{接下页}\\\endfoot
+\bottomrule\endlastfoot
+\DesignCode{sessions_one_active} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{active=1}；单活跃会话。\\
+\DesignCode{sessions_by_user} & (\DesignCode{user_id})；按账号查询会话。\\
+\DesignCode{draw_one_pending} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{status='pending'}；单待决定抽取。\\
+\DesignCode{portrait_job_pending} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{status IN ('running','ready')}；运行及待处理预览合计最多一项。\\
+\DesignCode{portrait_job_recent} & (\DesignCode{user_id},\DesignCode{created_at DESC})；本人最近任务。\\
+\DesignCode{real_notes_recipient} & (\DesignCode{recipient_id},\DesignCode{created_at DESC})；收件快照。\\
+\DesignCode{real_notes_sender} & (\DesignCode{sender_id},\DesignCode{created_at DESC})；发件快照。\\
+\DesignCode{real_notes_one_pending} & UNIQUE (\DesignCode{sender_id},\DesignCode{recipient_id}) WHERE \DesignCode{status='pending'}；仅约束有向用户对，反向冲突由应用检查。\\
+\DesignCode{real_messages_recent} & (\DesignCode{conversation_id},\DesignCode{id DESC})；最近消息。\\
+\end{longtable}
+\endgroup
 
-/**
- * 生成供浏览器持有的高熵会话令牌。
- * 使用 URL 安全编码，避免普通 Base64 中的特殊字符进入 Cookie 值。
- */
-export function newToken() {
-  return randomBytes(32).toString('base64url');
-}
+\noindent\textbf{额度。}应用限定收藏5个、真人纸条本地自然日2次、生图每账号滚动24小时12次
+（失败计次）；当前不限制每日抽取。文本/生图并发上限分别为单进程4/2，
+默认超时35/180秒，不是跨实例调度保障。
 
-/**
- * 将会话令牌转换为固定长度 SHA-256 摘要。
- * 保存和查找会话均使用此摘要，原始令牌只交给浏览器。
- */
-export function hashToken(token) {
-  return createHash('sha256').update(String(token)).digest('hex');
-}
-\end{lstlisting}
+\noindent\textbf{时间与读取。}普通时间为 Unix 毫秒；抽取 \DesignCode{day} 按 UTC+8 归档，
+不表示每日额度。虚拟周期自开始时间每7天划分，受演示偏移影响，全账号每周期一次确认。
+真人快照至多100纸条、50会话，每会话最近50消息；参考分读全量历史，缓存按末条消息编号复用，
+无新消息跨日不自动刷新。任务查询或创建时清理超过7天的非运行记录。
 
-\subsection*{B.2 双向匹配与事务（FR-02、FR-03）}
-资料保存边界（源码核查）：\texttt{lib/matching.mjs}的\texttt{saveMatchingProfile()}只接收两段介绍，SQL写入介绍、标签状态与时间，不保存同意字段。注册/资料路由的请求同意检查不是持久授权记录；\texttt{analyzeProfile()}返回后比较介绍是否改变，也不是授权撤回或授权版本校验。IT-02中的资料并发变更和授权生命周期应列为待测/能力边界，不能从标签提取测试推断已实现完整同意管理。
+\clearpage
+\section{来源与证据位置}
+设计事实以当前项目源码为准，官方资料仅解释技术机制。下列业务路径相对项目根目录，
+证据路径相对报告目录；本次仅核对静态文件，不读取运行库、真实密钥或调用真实模型。
 
-来源：\texttt{lib/matching.mjs}第164--174行。两方向都必须有交集，平均值取整。调用前的固定词表、非空数量及去重检查由资料解析完成，不能向此函数传入任意未校验对象。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-export function matchScore(a, b) {
-  // 分别计算双方期望被满足的比例；任一方向没有交集时不予匹配。
-  const towardB =
-    a.desiredTags.filter((t) => b.selfTags.includes(t)).length /
-    a.desiredTags.length;
-  const towardA =
-    b.desiredTags.filter((t) => a.selfTags.includes(t)).length /
-    b.desiredTags.length;
-  if (!towardA || !towardB) return 0;
-  return Math.round((100 * (towardA + towardB)) / 2);
-}
-\end{lstlisting}
+\noindent\textbf{源码入口。}
+\DesignCode{server.mjs} 与 \DesignCode{lib/http.mjs}、\DesignCode{lib/errors.mjs}
+定义请求准入、路由和响应；\DesignCode{lib/db.mjs} 定义18表、9索引、外键启用及兼容迁移。
+身份和虚拟互动见 \DesignCode{lib/auth.mjs}、\DesignCode{lib/state.mjs}、
+\DesignCode{lib/actions.mjs}、\DesignCode{public/core.mjs}；
+匹配抽取见 \DesignCode{lib/matching.mjs}、\DesignCode{lib/draw.mjs}；
+真人通信及缓存见 \DesignCode{lib/real-chat.mjs}、\DesignCode{lib/favorability.mjs}。
+媒体和 PNG 处理见 \DesignCode{lib/media.mjs}、\DesignCode{lib/portrait-generation.mjs}、
+\DesignCode{lib/portrait-png.mjs}；客户端建议发送、轮询及立绘回退见
+\DesignCode{public/app.mjs}、\DesignCode{public/api.mjs}、\DesignCode{public/portraits.mjs}。
 
-来源：\texttt{lib/draw.mjs}第224--234行。同步立即写事务仅在回调全部成功后提交，错误回滚。\texttt{draw()}、\texttt{decide()}和\texttt{remove()}共用此封装；不是在外部模型等待期间长期持有该写事务。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-function transaction(db, fn) {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const value = fn();
-    db.exec('COMMIT');
-    return value;
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
-}
-\end{lstlisting}
+\noindent\textbf{官方资料。}
+Node.js HTTP、Crypto 与 SQLite 文档：
+\url{https://nodejs.org/docs/latest-v24.x/api/http.html}、
+\url{https://nodejs.org/docs/latest-v24.x/api/crypto.html}、
+\url{https://nodejs.org/docs/latest-v24.x/api/sqlite.html}。
+SQLite 事务、WAL、部分索引及外键机制：
+\url{https://www.sqlite.org/lang_transaction.html}、
+\url{https://www.sqlite.org/wal.html}、
+\url{https://www.sqlite.org/partialindex.html}、
+\url{https://www.sqlite.org/foreignkeys.html}。
+建模术语参考 OMG UML 2.5.1：\url{https://www.omg.org/spec/UML/2.5.1/}。
 
-来源：\texttt{lib/draw.mjs}第272--281行，位于\texttt{draw()}内部，\texttt{pool}是已筛选候选，\texttt{pick}默认使用\texttt{randomInt(total)}，测试可注入票号。该连续片段只展示加权选择；后续同事务写入结果快照、前置待决定复用见完整源码。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-const total = pool.reduce((n, p) => n + p.score, 0);
-let ticket = pick(total),
-  chosen = pool.at(-1);
-for (const p of pool) {
-  ticket -= p.score;
-  if (ticket < 0) {
-    chosen = p;
-    break;
-  }
-}
-\end{lstlisting}
+\noindent\textbf{已有归档。}
+\DesignCode{assets/report/provenance.txt} 保留2026年11月4日环境、Git 状态与源码摘要；
+\DesignCode{assets/report/regression.txt}、\DesignCode{assets/report/source-count.txt}
+为已有回归和统计记录。\DesignCode{assets/report/pdf-check/} 与
+\DesignCode{assets/report/layout-check.txt} 保存本轮最终页面渲染和独立页数核验。
+项目 \DesignCode{README.md}、\DesignCode{VERIFICATION.md}、\DesignCode{tests/}
+可供追溯，历史记录不自动等同于当前能力。
 
-\subsection*{B.3 真人消息参与者检查（FR-06）}
-来源：\texttt{lib/real-chat.mjs}第242--261行。\texttt{conversation()}负责在写入前验证当前账号参与会话；\texttt{content()}限制正文。\texttt{sender\_id}由当前登录账号写入，不能由请求正文指定，更没有模型代替真人发言。纸条接受的事务建会话另见第188--236行。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-export function sendRealMessage(
-  db,
-  userId,
-  conversationId,
-  body,
-  now = Date.now()
-) {
-  const text = content(body, 500),
-    row = conversation(db, userId, conversationId);
-  const result = db
-    .prepare(
-      'INSERT INTO real_messages(conversation_id,sender_id,body,created_at) VALUES(?,?,?,?)'
-    )
-    .run(row.id, userId, text, now);
-  db.prepare('UPDATE real_conversations SET updated_at=? WHERE id=?').run(
-    now,
-    row.id
-  );
-  return Number(result.lastInsertRowid);
-}
-\end{lstlisting}
-
-\subsection*{B.4 情绪与资源回退（FR-09）}
-来源：\texttt{public/portraits.mjs}第20--40行。\texttt{PORTRAIT\_EMOTIONS}为六种情绪白名单；置信度必须为70至100的整数。选择函数还核对资源存在；版本为零时由界面显示无图回退。情绪输入的消息编号校验由\texttt{generateGuidance()}完成，而非在该纯选择函数中完成。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-export function portraitEmotion(analysis) {
-  return PORTRAIT_EMOTIONS.some(([id]) => id === analysis?.label) &&
-    Number.isInteger(analysis?.confidence) &&
-    analysis.confidence >= 70 &&
-    analysis.confidence <= 100
-    ? analysis.label
-    : 'default';
-}
-
-/**
- * 结合情绪判断与人物已上传的资源版本选择图片。
- * 对应情绪没有资源时回退默认版本，返回值供页面生成带版本号的地址。
- */
-export function portraitSelection(person, analysis) {
-  // 优先采用已上传的对应表情；缺少资源时回退到默认立绘版本。
-  const emotion = portraitEmotion(analysis),
-    version = person.portraitEmotions?.[emotion];
-  return version
-    ? { emotion, version }
-    : { emotion: 'default', version: person.portraitVersion || 0 };
-}
-\end{lstlisting}
-
-\subsection*{B.5 生图预览的版本校验与保存（FR-11）}
-来源：\texttt{lib/portrait-generation.mjs}第120--134行，是\texttt{createPortraitGeneration()}的内部\texttt{apply()}。\texttt{find()}按账号与任务共同查找，\texttt{hash()}计算默认图摘要。就绪前不能保存；就绪后仍需默认图及情绪目标版本一致，保存图片与任务状态一起提交，随后清除预览字节。此实现并不省去用户对图片内容的人工确认。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-function apply(userId,id){
- const job=find(userId,id);
- if(job.status==='saved')return {media:mediaStatus(db,userId),...state(userId)};
- if(job.status!=='ready')throw new ApiError('这张立绘尚不能保存。',409,'CONFLICT');
-
- // 默认图或目标情绪曾被替换时拒绝旧预览，避免覆盖用户更新的资源。
- const current=getMedia(db,userId,'portrait'),version=mediaStatus(db,userId).portraitEmotions[job.emotion]||0;
- if(!current||hash(current.bytes)!==job.source_hash||version!==job.target_version)throw new ApiError('默认立绘或该情绪图片已更换，请放弃旧预览后重新生成。',409,'IMAGE_STALE');
- db.exec('BEGIN IMMEDIATE');
- try{
-  saveMedia(db,userId,'portrait','data:image/png;base64,'+Buffer.from(job.bytes).toString('base64'),job.emotion);
-  db.prepare("UPDATE portrait_generation_jobs SET status='saved',bytes=NULL WHERE id=?").run(id);db.exec('COMMIT');
- }catch(error){db.exec('ROLLBACK');throw error}
- return {media:mediaStatus(db,userId),...state(userId)};
-}
-\end{lstlisting}
-
-\section*{附录C：真实测试断言与检查定位}
-\subsection*{C.1 待决定复用与同日继续抽取}
-来源：\texttt{tests/draw.test.mjs}第26--35行。\texttt{fixture()}准备内存库和就绪账号，\texttt{now}为固定时间；断言不仅验证重复抽取，还覆盖跨日复用、重复喜欢、虚拟日期推进/重置不改变抽取口径，以及决定后同日新增记录。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-test('unlimited same-day draws preserve pending results and idempotent decisions',t=>{
- const {db,a}=fixture(t),one=draw(db,a.user.id,now,()=>0);assert.equal(one.remaining,null);assert.equal(one.unlimited,true);
- assert.equal(draw(db,a.user.id,now,()=>100).pending.drawId,one.pending.drawId);
- assert.equal(draw(db,a.user.id,now+86400000).pending.drawId,one.pending.drawId);
- decide(db,a.user.id,one.pending.drawId,'like',now);decide(db,a.user.id,one.pending.drawId,'like',now);
- assert.equal(drawState(db,a.user.id,now).collection.length,1);assert(drawState(db,a.user.id,now).canDraw);
- runAction(db,a.user,'advance',{days:30},now);runAction(db,a.user,'reset',{},now);
- assert.equal(drawState(db,a.user.id,now).remaining,null);assert.equal(drawState(db,a.user.id,now).collection.length,1);
- const two=draw(db,a.user.id,now,()=>0);assert.notEqual(two.pending.drawId,one.pending.drawId);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM draw_records WHERE user_id=? AND day=?').get(a.user.id,drawDay(now)).n,2);
-});
-\end{lstlisting}
-
-\subsection*{C.2 私有预览、越权拒绝与幂等保存}
-来源：\texttt{tests/portrait-generation.test.mjs}第24--30行，位于“generation uses stored own reference, remains a private preview, and saves only on confirmation”测试内部；\texttt{fixture()}在此前注入模拟上游PNG。\texttt{a}为所有者，\texttt{b}为其他账号，\texttt{finished()}轮询任务完成。连续断言展示请求幂等、预览阶段未写目标槽、越权404、透明像素、确认后saved及字节释放。
-\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
-const request=input(),job=service.start(a,request);assert.equal(service.start(a,request).id,job.id);assert.equal(calls,1);
-assert.throws(()=>service.start(a,input()),e=>e.code==='IMAGE_PENDING');
-assert.equal((await finished(service,a)).status,'ready');assert.equal(mediaStatus(db,a).portraitEmotions.happy,undefined);
-assert.throws(()=>service.image(b,job.id),e=>e.status===404);assert.throws(()=>service.apply(b,job.id),e=>e.status===404);
-assert(decodePortraitPng(Buffer.from(service.image(a,job.id))).pixels[3]===0);
-assert(service.apply(a,job.id).media.portraitEmotions.happy);assert.equal(service.apply(a,job.id).job.status,'saved');
-assert.equal(db.prepare('SELECT bytes FROM portrait_generation_jobs WHERE id=?').get(job.id).bytes,null);
-\end{lstlisting}
-
-\subsection*{C.3 其他关键测试的定位}
-认证的\texttt{logging in on a second device kicks the first one off}测试同时检查旧会话\texttt{replaced}、新会话有效及库内有效会话数为一；\texttt{core.test.mjs}中的\texttt{replies retry without duplicate user message, both directions}检查重复发送拒绝、回复只增一条及重复完成返回false。\texttt{mutual outcome requires current explicit consent and spends once}与撤回/屏蔽用例检查跨期重新授权、不合资格不耗次数。
-
-\texttt{server.test.mjs}的\texttt{private data is excluded from upstream messages}核对上游不含私人分数、授权字段及密钥；\texttt{full AI capacity still permits profile saves and manual messages}使用挂起模型请求验证普通业务与文本四并发额度分离。\texttt{favorability.test.mjs}中的\texttt{privacy switch: reciprocal visibility enforcement}及HTTP API用例核对双方开关与参与者权限。媒体分离测试验证旧头像迁移只执行一次、保留历史资源且不挪用作新立绘。这些定位与第04章矩阵共同使用，不把测试标题本身当作执行日志。
-
-\subsection*{C.4 断言范围与源码边界}
-第04章每个IT场景均分别列出已有断言、源码与待测范围；同一例包含多个层次，不设整体“通过”状态。已有断言必须能在对应测试中定位，120项是归档框架统计，不能证明所有IT子场景已执行。历史非功能展示的五并发和失败重试不能当作本轮新增断言；当前抽取HTTP测试实际发出八个并发请求。
-
-\texttt{actions.test.mjs}的reset测试只断言虚拟纸条清空、偏移归零、展示名回到用户名及账号存续；\texttt{draw.test.mjs}另断言reset后收藏数量不变。源码\texttt{ACTIONS.reset}调用\texttt{freshState()}、\texttt{defaultProfile()}并覆盖虚拟状态，\texttt{writeState()}只更新users资料与states；不删除真人纸条/会话/消息、收藏/抽取、匹配资料或媒体。真人和媒体完整保留的专门断言、页面二次确认及在途请求与重置竞态仍属待测，不把测试标题中的“interactions”扩张为全部业务数据。
-
-真人参考分的隐私测试采用顺序切换：先开启并读取/分析，完成后关闭再读取，核对隐藏；没有在模型挂起期间关闭任一方开关的断言。源码\texttt{/api/real/favorability/analyze}在模型请求前读取双方开关，但\texttt{await completion()}之后不复查，直接写\texttt{conversation\_favorability}并返回\texttt{canView:true}。在途关闭不能撤回已外发内容，且原响应仍可能给出结果；后续GET隐藏不等于在途撤回保护。该缺口属于源码发现，动态竞态验证待测，未因本轮120项通过而消失。
-
-\section*{附录D：历史性能明细（2026-10-31）}
-以下全部数字抄录\texttt{VERIFICATION.md}的2026年10月31日记录，环境为Core Ultra 7 155H、WSL2 Linux 6.6.87.2、Node.js v24.21.0，数据库位于E盘独立测试目录，SQLite文件库启用WAL。每组预热20次、正式100次，准备及预热不计时；每组正式执行前重置初始消息规模，发送组再新增100条。客户端与服务端为不同进程，使用模拟模型，未测真实推理、生图或公网延迟。表中“读”指真人快照，不是无限历史分页；每行错误均为0/100。
-
-\begin{table}[H]
-  \centering
-  \caption{2026-10-31 历史性能：并发1}
-  \label{tab:appendix-performance-one}
-  {\songti\rmfamily\zihao{5}
-  \begin{tabular}{@{}rlrrrrr@{}}
-    \toprule
-    初始消息 & 接口 & 平均/ms & P50/ms & P95/ms & 成功请求/秒 & 错误 \\
-    \midrule
-    100 & 状态 & 0.83 & 0.72 & 1.37 & 1206.20 & 0/100 \\
-    100 & 账号 & 4.33 & 4.31 & 5.30 & 230.83 & 0/100 \\
-    100 & 读 & 5.78 & 5.77 & 6.88 & 172.94 & 0/100 \\
-    100 & 发 & 13.25 & 13.09 & 15.24 & 75.45 & 0/100 \\
-    1000 & 状态 & 0.40 & 0.38 & 0.57 & 2521.92 & 0/100 \\
-    1000 & 账号 & 4.54 & 4.38 & 6.36 & 220.06 & 0/100 \\
-    1000 & 读 & 5.65 & 5.52 & 6.96 & 176.95 & 0/100 \\
-    1000 & 发 & 12.76 & 12.18 & 15.37 & 78.37 & 0/100 \\
-    \bottomrule
-  \end{tabular}}
-\end{table}
-
-\begin{table}[H]
-  \centering
-  \caption{2026-10-31 历史性能：并发10}
-  \label{tab:appendix-performance-ten}
-  {\songti\rmfamily\zihao{5}
-  \begin{tabular}{@{}rlrrrrr@{}}
-    \toprule
-    初始消息 & 接口 & 平均/ms & P50/ms & P95/ms & 成功请求/秒 & 错误 \\
-    \midrule
-    100 & 状态 & 2.54 & 2.42 & 3.29 & 3725.35 & 0/100 \\
-    100 & 账号 & 35.42 & 30.06 & 64.25 & 268.69 & 0/100 \\
-    100 & 读 & 50.31 & 41.61 & 94.18 & 190.26 & 0/100 \\
-    100 & 发 & 122.96 & 103.06 & 221.54 & 77.57 & 0/100 \\
-    1000 & 状态 & 2.33 & 2.09 & 4.34 & 4160.91 & 0/100 \\
-    1000 & 账号 & 31.45 & 27.21 & 57.56 & 302.86 & 0/100 \\
-    1000 & 读 & 43.39 & 36.53 & 77.90 & 219.30 & 0/100 \\
-    1000 & 发 & 111.58 & 92.20 & 201.49 & 85.55 & 0/100 \\
-    \bottomrule
-  \end{tabular}}
-\end{table}
-
-“状态、账号、读、发”分别对应\texttt{GET /api/status}、\texttt{GET /api/me}、\texttt{GET /api/real}与\texttt{POST /api/real/message}。16组正式请求合计1600次、无失败；平均与分位数只按成功请求计算，P50/P95按排序后最近秩取值，吞吐用成功数除以该批次墙钟时间，不用\texttt{1000/平均耗时}替代并发吞吐。历史非功能检查19项通过与历史回归120项通过属于另外两种统计；2026-11-04归档回归的3049.829 ms也不是此表中任一列。
-
-\section*{附录E：本轮截图与待验证范围}
-五张截图于2026年11月4日通过隔离场景生成，经PNG文件头核对，原图均为1440$\times$1000像素，存放于\texttt{assets/report/}。图像检查确认文件可读且呈现对应页面；表\ref{tab:appendix-screenshots}记录实际可见内容而不推断图外操作。截图采用演示场景，消息、情绪和参考值不构成真实心理或真实模型质量证据。
-
-\begin{table}[H]
-  \centering
-  \caption{2026-11-04 五张隔离截图的检查索引}
-  \label{tab:appendix-screenshots}
-  {\songti\rmfamily\zihao{5}
-  \begin{tabular}{@{}p{.15\textwidth}p{.40\textwidth}p{.35\textwidth}@{}}
-    \toprule
-    文件 & 已检查的可见内容 & 不能由该图单独确认的行为 \\
-    \midrule
-    \texttt{login.png} & 登录表单、账号单会话说明、注册入口。 & 注册成功、非法凭据拒绝、旧设备会话失效。 \\
-    \texttt{meet.png} & 不限次数标识、暂无合适候选提示、档位说明及4/5收藏占位。 & 加权抽取、并发复用、喜欢/跳过/冷却与刷新恢复。 \\
-    \texttt{notes.png} & 真人纸条、已回信状态、真人对话入口与虚拟人物分区。 & 角色权限、拒绝不建会话、接受的事务原子性及实时更新。 \\
-    \texttt{chat.png} & 演示对象、消息、三项建议和自己输入、风格选项、开心标识及参考分。 & 建议仅填草稿、消息/风格竞态、轮询、失败恢复及模型真实性。 \\
-    \texttt{media.png} & 媒体弹窗、背景/头像/默认立绘的独立入口、上传限制与当前预览。 & 上传持久化、全部情绪槽、生图授权、私有预览及确认保存。 \\
-    \bottomrule
-  \end{tabular}}
-\end{table}
-
-\subsection*{E.1 回归归档与读取范围}
-\texttt{assets/report/regression.txt}包含\texttt{npm test}的测试标题、单项耗时和框架汇总；末尾汇总为tests 120、suites 0、pass 120、fail 0、cancelled 0、skipped 0、todo 0、duration\_ms 3049.829。Windows和Node.js v24.13.0为本轮记录的执行环境，不把单项测试耗时或总耗时作为接口性能指标。\texttt{source-count.txt}为统计命令的逐文件JSON输出（含npm命令头），其中主体业务6220行、应用源码10838行；其物理行和非空行均可能包含注释。
-
-环境与工作区旁证保存在\texttt{assets/report/provenance.txt}，采集时间为2026-11-04 19:42（UTC+8），包含操作系统内核标识、PowerShell版本、Node.js版本、Git HEAD、非干净工作区列表，以及主体源码和回归文件的SHA-256摘要。它在回归之后采集，不能伪称回归日志本身内嵌了时间和版本；本次没有修改业务源文件，摘要用于后续判断文件是否已变化。HEAD为\texttt{9d18f30668073a988bf5e1181b8c288e370faddf}，不代表未提交内容已经进入该提交。
-
-\subsection*{E.2 尚需独立验证的能力}
-除浏览器复测外，IT各例仍有独立覆盖缺口：匹配资料在途变化与同意生命周期、真人纸条额度和拒绝/事务故障、真人模型故障下手动发送、重置后真人及媒体完整保留，以及参考分分析在途关闭。对已由源码确认不存在的持久同意或返回后开关复查，不能写成“已通过、仅待截图”；待测表示证据不足，不表示业务缺口已修复。
-
-本轮已归档自动化业务回归、源码规模和五张页面截图，但完整浏览器回归尚未整套重跑。消息/风格竞态、建议只填草稿、会话失效后的草稿恢复、重置二次确认、生图授权与预览保存，以及移动端多视口、键盘焦点和减少动态效果仍需对应版本的脚本输出。真实模型兼容性、文本质量、人物一致性及授权外发载荷应另记服务配置范围与人工检查；更高负载、无障碍和生产安全不能由历史性能或截图推导。
-
-历史2026-09-26的“没有真实多人通信”只描述当时版本，当前源码已实现账号间文字通信；当前仍没有真实身份核验、生产审核、端到端加密或公网生产保障。未执行的检查不填通过，提交历史不等于部署记录，行数和截图数量也不等于个人贡献量。
+\noindent\textbf{备查边界。}
+\DesignCode{chapters/appendix.tex} 中已注释的原始附录保留备查，
+不进入本次PDF；完整需求依据项目文档查询，原始字段和路由
+可按上述业务模块位置查询。
+正文解释设计过程，本附录提供接口、数据及索引的简短查阅入口。

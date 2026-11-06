@@ -28,7 +28,22 @@
 \RequirePackage{amsmath}
 \RequirePackage{seqsplit}
 \RequirePackage{tikz}
+\RequirePackage{xcolor}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
+\definecolor{ReportBlue}{HTML}{52758B}
+\definecolor{ReportTeal}{HTML}{567F78}
+\definecolor{ReportGray}{HTML}{F2F4F5}
+\tikzset{
+  reportbox/.style={draw=ReportBlue,fill=ReportBlue!7,rounded corners=2pt,
+    align=center,font=\small\linespread{1.05}\selectfont,text width=35mm,
+    minimum height=10mm,inner sep=4pt},
+  reportentity/.style={draw=ReportTeal,fill=ReportTeal!7,align=center,
+    font=\scriptsize\linespread{1.05}\selectfont,text width=37mm,
+    minimum height=12mm,inner sep=4pt},
+  reportarrow/.style={-{Stealth[length=2mm]},draw=ReportBlue,semithick},
+  reportlabel/.style={font=\scriptsize\linespread{1}\selectfont,
+    fill=white,inner sep=2pt,text=black}
+}
 \RequirePackage[titles]{tocloft}
 \RequirePackage{xurl}
 \RequirePackage[unicode,hidelinks,bookmarksnumbered=true]{hyperref}
@@ -93,7 +108,7 @@
 \AtBeginEnvironment{longtable}{\zihao{5}\linespread{1.15}\selectfont}
 \raggedbottom
 \setcounter{secnumdepth}{2}
-\setcounter{tocdepth}{2}
+\setcounter{tocdepth}{1}
 
 \ctexset{
   contentsname={目\quad 录},
@@ -200,6 +215,7 @@
 % Narrow table columns must not force long API and function names into margins.
 \let\ReportOriginalTexttt\texttt
 \renewcommand{\texttt}[1]{\ReportOriginalTexttt{\seqsplit{#1}}}
+\newcommand{\DesignCode}[1]{\ReportOriginalTexttt{\expandafter\seqsplit\expandafter{\detokenize{#1}}}}
 
 \newcommand{\ReportUnnumberedChapter}[1]{%
   \chapter*{#1}

@@ -1,0 +1,70 @@
+Report layout verification / 2026-11-06
+
+Latest chapter-wide language revision: all 20 design fragments and their
+figures/tables explain responsibilities, core flows, design ideas and outcomes.
+This pass further removes repeated disclaimers and low-level task/cache detail.
+The reference-score disclaimer ending was removed, not replaced by a new warning.
+The formal PDF was rebuilt; no business regression tests were rerun.
+
+Final entry: report.tex
+Enabled: cover, task, contents, chapter 3, compact design appendix.
+Chapters 1/2/4/5/6 remain commented out.
+Chapter numbering: 3, with figures/tables 3-x.
+Formal appendix entry: chapters/appendix.tex.
+The original appendix is retained there as line comments; current compact
+appendix content follows those comments. The unused compatibility shim was removed.
+The formal appendix has one chapter, Design Supplementary Materials;
+its sections contain summaries, not complete API or field inventories.
+
+Acceptance uses the delivered report.pdf, not a temporary combined entry.
+Required chapter 3 body: exactly 20 pages; measured 20; PASS.
+Required appendix: at most 6 pages; measured 5; PASS.
+Front matter: 3 pages, excluded from the body and appendix counts.
+PDF total: 28 pages = 3 front matter + 20 body + 5 appendix.
+Physical PDF pages: front matter 1-3; body 4-23; appendix 24-28.
+Body printed pages: 1-20; appendix printed pages: 21-25.
+report.tex checks body/appendix counts after flushing pending floats.
+Old combined chapter 1-3 results are not current acceptance evidence.
+
+Final PDF text bounding boxes: 28 pages, 2394 words, 0 outside page bounds.
+Body text per page, including figures and tables: 474-836 non-space characters.
+Business source/test digest comparison: 43 entries, all consistent.
+Digest consistency does not constitute a new business regression run.
+Latest formal compilation: exit 0; body/appendix checks pass; no Overfull,
+Underfull, missing characters or unresolved references in the final log.
+Active labels: 44; duplicates: 0; unresolved references: 0.
+Metadata, cover and reportstyle digests match the preserved versions.
+
+Image preview service recovered during this pass.
+Visual review completed for physical PDF pages 4-28: all 20 body pages,
+all 15 design figures and all 5 appendix pages were read as 1500px page renders.
+No text obstruction, node intersection or clipping was observed;
+table continuation headers and the body/appendix boundary were checked.
+Front matter was not modified and is outside this new visual review scope.
+
+Reference-only old large appendix sources, not loaded into the formal PDF:
+Original commented content in chapters/appendix.tex
+The three extra old appendix files have been removed.
+Use lib/db.mjs or the relevant business module for complete original structure;
+do not link formal appendix references to uncompiled inventory labels.
+
+Revision scope:
+chapters/design/01-20, design editing index, final PDF, local PDF evidence
+and delivery documentation. No business code or real data was edited;
+no real AI providers were called; archived regression results were retained.
+Matching, weighted draw and composite reference-score formulas are retained.
+Low-level implementation formulae and inventories were removed from the body
+without expanding the appendix or reintroducing old appendix files.
+
+Diagram regression after language revision:
+All 15 figures were checked, including 3-2/3-3/3-6/3-8/3-10/3-15.
+The previous figure 3-5 wrapping correction and six-diagram spacing fixes
+are retained after the wording changes.
+All 28 local page renders and PDF text/bounds were regenerated.
+Actual TikZ anchor measurement covers 124 nodes, labels and coordinates;
+no intersecting box pairs were found (0.1 mm tolerance).
+Figure 3-10 a/b/c/d main-flow edge gaps: 8.00 mm each.
+Figure 3-15 successive edge gaps: 17.05, 10.00, 17.05, 10.00 mm.
+These measurements supplement direct page/figure visual review.
+Current geometry results are summarized above. The earlier raw geometry log,
+diagram-language-geometry.log, is retained as evidence of the preceding revision.

@@ -1,0 +1,50 @@
+% Page 3: request flow and contracts.
+\subsection{HTTP 请求处理与接口契约}
+接口把页面上的查看、选择和发送转为可检查的业务操作。
+服务端先接收请求并识别所访问的内容，再按查询或提交进入相应流程，
+如图\ref{fig:design-http-flow}所示。需要身份的操作先确认登录状态，涉及他人或会话的内容再检查访问权限。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportbox,text width=106mm] (admit) at (0,0) {接收请求：识别访问内容与操作类型};
+\node[reportentity,text width=47mm,font=\small\linespread{1.05}\selectfont,minimum height=16mm,below=10mm of admit.south,xshift=-35mm] (get)
+ {查询：页面、资源与记录\\确认身份及可访问范围};
+\node[reportentity,text width=47mm,font=\small\linespread{1.05}\selectfont,minimum height=16mm,below=10mm of admit.south,xshift=35mm] (post)
+ {提交：选择、文本与素材\\检查来源及输入是否合适};
+\node[reportbox,text width=106mm,below=8mm of get.south,xshift=35mm] (biz)
+ {处理业务：核对用户、资源与当前条件，查阅或保存结果};
+\node[reportbox,text width=106mm,below=8mm of biz.south] (out)
+ {返回结果：展示内容、处理状态或失败原因};
+\coordinate[below=5mm of admit.south] (split);
+\draw[reportarrow] (admit.south) -- (split) -| (get.north);
+\draw[reportarrow] (split) -| (post.north);
+\draw[reportarrow] (get.south) -- (get.south |- biz.north);
+\draw[reportarrow] (post.south) -- (post.south |- biz.north);
+\draw[reportarrow] (biz.south) -- (out.north);
+\end{tikzpicture}
+\caption{请求接收、业务检查与结果返回流程}\label{fig:design-http-flow}
+\end{figure}
+
+查询取得当前记录，提交表达一次明确选择。提交先检查来源与输入，再判断业务条件。
+例如，服务端按会话编号定位交流，确认用户的参与者身份后读取或发送消息。
+
+分层检查使不同问题有明确处理：未登录时引导登录，输入不合适时提示修改，
+业务条件变化时返回当前结果，帮助用户决定下一步。
+
+\begin{table}[H]
+\centering\small\linespread{1.15}\selectfont
+\caption{代表业务操作及处理结果}\label{tab:design-api-summary}
+\begin{tabularx}{\linewidth}{@{}p{.34\linewidth}X@{}}
+\toprule 业务操作 & 用户选择与核心结果 \\ \midrule
+进入个人页面 & 获取本人资料、互动和形象摘要，展示已有记录与辅助能力的可用状态 \\
+发现相遇对象 & 由服务端选择候选；已有待决定卡片时继续展示该卡，等待收藏或跳过 \\
+处理收到的纸条 & 收件人选择接受并回信或拒绝；接受后建立会话，拒绝则结束本次邀请 \\
+申请情绪立绘 & 用户选择情绪并同意生成；服务端返回任务状态，完成后由用户查看预览并确认保存 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+页面区分完成、等待与失败，接口摘要见附录表\ref{tab:compact-api}。
+
+\clearpage

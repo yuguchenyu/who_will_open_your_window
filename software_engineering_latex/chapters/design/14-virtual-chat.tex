@@ -1,0 +1,36 @@
+\clearpage
+\section{虚拟纸条、聊天与回复等待}
+\label{sec:design-virtual-chat}
+虚拟交流由模型生成虚拟人物回复，提供纸条邀请与连续聊天的体验。
+新增抽取池人物首次投递前需先收藏；投递还检查屏蔽、待处理或已归档纸条、既有双向联系，
+并按虚拟演示的本地日期限制每天2次新纸条。已有双向联系时转到聊天继续交流。
+发出的纸条先保存为待回应，模型完成后才出现回复；预设收到的纸条明确属于演示内容。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportbox,text width=42mm] (out) at (-3.4,0) {发出纸条\\保存原文，等待虚拟回复};
+\node[reportbox,text width=42mm] (in) at (3.4,0) {收到虚拟纸条\\用户回信，接入聊天};
+\node[reportbox,text width=103mm] (pending) at (0,-1.9) {先保存本轮交流与待回复状态，再请求模型生成回应};
+\node[reportentity,text width=42mm] (ok) at (-3.4,-3.7) {完成：保存有效回复\\结束本轮等待};
+\node[reportentity,text width=42mm] (fail) at (3.4,-3.7) {失败：保留待回复状态\\重试不重复发送本人文字};
+\draw[reportarrow] (out.south) -- (out.south |- pending.north);
+\draw[reportarrow] (in.south) -- (in.south |- pending.north);
+\draw[reportarrow] (pending.south -| ok.north) -- (ok.north);
+\draw[reportarrow] (pending.south -| fail.north) -- (fail.north);
+\draw[reportarrow] (fail.east) -- (6.1,-3.7) |- node[reportlabel,near start,right]{重试} (pending.east);
+\end{tikzpicture}
+\caption{虚拟交流的回复等待、完成与失败重试}\label{fig:design-virtual-reply}
+\end{figure}
+
+\subsection{首次联系与普通聊天}
+收到纸条后，用户可以暂存、拒绝归档，或填写回信进入聊天。
+回复收到的纸条时，来信和回信先接入历史，再等待下一条模型回应；主动发出的纸条则在模型回复成功后，
+将原纸条与回复一并接入聊天。纸条及回信为非空的100字以内文本，普通聊天消息限500字。
+普通聊天要求已有双方发言、人物未被屏蔽且上一轮回复已经完成，以一轮一轮的交流避免同一人物积压多条请求。
+
+\subsection{失败恢复与历史保留}
+模型依据已保存的近期消息与人物资料生成回复，首轮纸条另带入原文，使回应接续已有内容。
+生成失败时保留原纸条或已发消息以及等待状态，用户可手动重试本轮虚拟回复。
+屏蔽会停止该人物的待回复并撤回已有回望授权，交流历史继续保留，便于用户回顾。
+
