@@ -33,6 +33,19 @@ test('model output must use the fixed matching vocabulary', () => {
   assert.throws(() => validateIntroduction('哈'.repeat(31),'哈'.repeat(32)),/重复同一个字符/);
 });
 
+test('matching keeps supported tags when the model adds out-of-vocabulary interests', () => {
+  assert.deepEqual(parseTags(JSON.stringify({
+    selfTags: ['喜欢科技', '喜欢编程', '喜欢无人机'],
+    desiredTags: ['喜欢历史', '真诚', '喜欢华为'],
+  })), {selfTags: ['喜欢科技'], desiredTags: ['真诚']});
+  assert.throws(() => parseTags(JSON.stringify({
+    selfTags: ['喜欢编程'], desiredTags: ['温柔'],
+  })), error => error.code === 'FORMAT');
+  assert.throws(() => parseTags(JSON.stringify({
+    selfTags: ['喜欢科技', null], desiredTags: ['温柔'],
+  })), error => error.code === 'FORMAT');
+});
+
 test('registration saves introductions, generates tags, and serves eligible recommendations', async t => {
   const db = openDatabase(':memory:');
   const config = {configured: true, base: 'https://example.invalid/v1', key: 'TEST', model: 'test'};
@@ -88,7 +101,10 @@ test('matching retry reports sanitized model errors and recovers on success', as
   const server = createServer({configured:true,base:'https://example.invalid/v1',key:'TEST',model:'test'}, {
     db,fetchImpl:async()=>unavailable
       ? new Response('private upstream diagnostics',{status:401})
-      : new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(tags)}}]}),{status:200}),
+      : new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({
+        selfTags: [...tags.selfTags, '喜欢编程'],
+        desiredTags: [...tags.desiredTags, '喜欢无人机'],
+      })}}]}),{status:200}),
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(()=>new Promise(resolve=>{server.closeAllConnections();server.close(()=>{db.close();resolve()})}));
@@ -105,4 +121,7 @@ test('matching retry reports sanitized model errors and recovers on success', as
   assert.equal(recovered.matchingProfile.status,'ready');
   assert.equal(recovered.matchingError,null);
   assert.equal(recovered.aiAvailable,true);
+  assert.deepEqual(recovered.matchingProfile.selfTags,tags.selfTags);
+  assert.deepEqual(recovered.matchingProfile.desiredTags,tags.desiredTags);
+  assert.deepEqual(JSON.parse(db.prepare('SELECT self_tags FROM matching_profiles WHERE user_id=?').get(user.id).self_tags),tags.selfTags);
 });
