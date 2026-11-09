@@ -1,38 +1,17 @@
 \clearpage
 \section{真人纸条与会话建立}
 \label{sec:design-real-chat}
-真人交流以短纸条作为低压力的首次邀请，由真实收件人决定是否开始聊天。
-投递要求对方为已收藏且仍存在的其他账号、允许接收纸条，双方尚无会话且任一方向都没有待回应纸条。
-纸条与回信均须为非空的100字以内文本；每账号每天最多向真人投递2张。
-接收开关控制新纸条投递，已有会话继续交流。
+真人联系从一张短纸条开始，是否建立会话由收件人决定。发信前要确认对方是自己已收藏的其他有效账号，而且对方允许接收。两人已有会话，或者任一方向还有待回应的纸条，均不允许重复投递。纸条和回信都要求非空且不超过100字，每个账号每天最多给真人发2张，额度按服务端本地日期的零点起算。关闭接收只影响新纸条，已有聊天仍可以继续。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportbox,text width=66mm] (a) at (-1.6,0) {收件人查看仍待回应的纸条};
-\node[reportbox,text width=66mm] (b) at (-1.6,-1.15) {接受还是拒绝？};
-\node[reportbox,text width=66mm] (c) at (-1.6,-2.3) {接受：填写有效回信\\确认开始交流};
-\node[reportbox,text width=66mm] (d) at (-1.6,-3.8) {接受纸条并建立会话\\原纸条与回信成为首轮消息};
-\node[reportentity,text width=27mm] (r) at (4.9,-1.15) {拒绝邀请\\不建立会话};
-\node[reportentity,text width=27mm] (err) at (4.9,-3.8) {建立失败\\保留待回应状态};
-\node[reportentity,text width=66mm] (e) at (-1.6,-5.25) {更新纸条与会话展示};
-\draw[reportarrow] (a.south) -- (b.north);
-\draw[reportarrow] (b.south) -- (c.north);
-\draw[reportarrow] (b.east) -- (r.west);
-\draw[reportarrow] (c.south) -- (d.north);
-\draw[reportarrow] (d.south) -- (e.north);
-\draw[reportarrow] (d.east) -- (err.west);
-\draw[reportarrow] (r.east) -- (6.6,-1.15) -- (6.6,-6.2) -- (-1.6,-6.2) -- (e.south);
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{assets/design/real-note-flow.pdf}
 \caption{真人回应纸条与开始交流的选择流程}\label{fig:design-real-flow}
 \end{figure}
 
 \subsection{回应选择与会话准入}
-收件人回应待处理纸条，拒绝后结束本次邀请；接受时将纸条状态、会话和首轮消息整体保存。
-原纸条与回信接入聊天，使首次邀请自然延续为对话。
+收件人拒绝后，这次邀请就结束了。接受并回信时，服务端一起保存纸条状态、会话和首轮消息。用户进入会话后可以查看原纸条和回信。
 
 \subsection{持续交流与页面同步}
-建立会话后，双方参与者可以查看消息，并发送非空的500字以内文本。
-聊天页按交流顺序展示近期消息，定期同步对方的新内容，并保留正在编辑的草稿与输入焦点。
-例如对方在用户输入时回复，页面补充新消息而不打断表达。
+只有会话双方可以查看和发送消息，消息非空且最多500字。页面按交流顺序显示近期消息，定期同步新内容。比如一方正在打字时另一方发来消息，页面会补上新消息，同时保留原来的草稿和输入焦点。
 

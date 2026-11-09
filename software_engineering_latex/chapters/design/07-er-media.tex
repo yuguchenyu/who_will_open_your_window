@@ -1,42 +1,17 @@
 % Page 7: media and generation ER.
 \subsection{媒体与生成任务的数据关系}
-头像、个人背景与聊天立绘承担不同展示作用，生成预览又需要等待用户决定，因而分别管理。
-图\ref{fig:design-er-media}保留历史归档、当前立绘、个人媒体和生成任务四类实体，
-它们均归属账号，预览经确认后才进入当前立绘。
+头像、背景和聊天立绘可以分别更换。生成图还要经过预览和确认，因此生成任务单独保存。图\ref{fig:design-er-media}中的个人媒体、当前立绘、历史归档和生成任务都归属账号。预览图只有确认后才会写入当前立绘。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportentity,text width=40mm,font=\small] (u) at (-4.8,-2.1) {\DesignCode{users}\\账号};
-\node[reportentity,text width=53mm,font=\small] (old) at (2.3,0) {\DesignCode{user_portraits}\\按账号与情绪归档\\保存历史图片};
-\node[reportentity,text width=53mm,font=\small] (sprite) at (2.3,-2.1) {\DesignCode{user_sprites}\\按账号与情绪管理\\默认立绘与六种情绪图};
-\node[reportentity,text width=53mm,font=\small] (media) at (2.3,-4.2) {\DesignCode{user_media}\\按账号与用途管理\\个人头像与背景};
-\node[reportentity,text width=53mm,font=\small] (job) at (2.3,-6.5) {\DesignCode{portrait_generation_jobs}\\归属本人的生成请求\\任务进度与私有预览};
-\draw (u.east) -- (-1.7,-2.1);
-\draw (-1.7,0) -- (-1.7,-6.5);
-\draw (-1.7,0) -- node[reportlabel,above]{1:0..N} (old.west);
-\draw (-1.7,-2.1) -- node[reportlabel,above]{1:0..N} (sprite.west);
-\draw (-1.7,-4.2) -- node[reportlabel,above]{1:0..N} (media.west);
-\draw (-1.7,-6.5) -- node[reportlabel,above]{1:0..N} (job.west);
-\draw[reportarrow,dashed] (job.east) -- (6,-6.5) -- (6,-2.1) -- (sprite.east);
-\node[reportlabel,align=left,text width=38mm] at (-4.8,-5.4)
- {虚线为确认保存的逻辑路径：复核来源与目标后写入立绘。};
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{assets/design/media-er.pdf}
 \caption{ER 视图二：个人媒体、历史归档与生成预览的关系}\label{fig:design-er-media}
 \end{figure}
 
-头像用于识别用户，背景用于本人页面布置，立绘用于聊天形象。
-当前立绘包括一张默认图及开心、难过、生气、害羞、惊讶、思考六种情绪图，
-按情绪分别替换。历史归档保存旧图片，当前聊天从立绘表读取对应形象。
-头像、背景与情绪图按各自用途更新，支持独立设置和恢复。
+头像用于辨认用户，背景用于个人页面展示。聊天立绘按情绪分槽位，包括默认图，以及开心、难过、生气、害羞、惊讶、思考六张情绪图。替换其中一张不用重设其他图片。聊天页从当前立绘表读取对应图片。历史归档保留旧版图片，迁移时选取每个账号最新的一张旧图作为头像初始值，日常替换立绘只更新当前记录。头像、背景和立绘可分别设置。
 
-页面先取得媒体存在情况和更新摘要，展示时按需读取图片，使交流同步保持轻量。
-背景仅本人可读，头像与立绘由本人或具备有效访问关系的用户查看。
-媒体访问按展示用途组织，纸条与消息继续由真人通信记录管理。
+同步时页面先取图片是否存在和更新摘要，需要展示时再读图片。背景只允许本人读取，头像和立绘可由本人查看。查看他人的资源时，当前用户须与对方有会话、待回应或已接受的纸条，或已收藏对方、持有对方的待决定卡片。纸条和消息仍按真人通信记录管理。
 
-生成流程先记录本人的请求，生成中与待确认任务合计最多一个。
-完成后进入私有预览阶段，用户查看后选择确认保存或放弃。
-确认时核对默认素材与目标情绪图，符合任务条件后整体保存立绘与任务结果，
-素材变化时提示重新处理；失败、保存或放弃后清除预览。
+每个账号最多有一个生成中或待确认的任务。生成完成后先给本人看预览，再由本人确认或放弃。确认时会核对默认立绘和目标情绪图是否仍符合任务条件，通过后一起保存立绘和任务结果。素材发生变化时提示重新处理。失败、保存或放弃后清除预览。
 
 \clearpage

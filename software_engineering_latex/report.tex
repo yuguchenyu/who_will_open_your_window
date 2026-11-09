@@ -16,27 +16,21 @@
 \pagenumbering{arabic}
 % \input{chapters/01-problem}
 % \input{chapters/02-requirements}
-\setcounter{chapter}{3}
-% \input{chapters/03-design}
-\input{chapters/04-implementation}
+\setcounter{chapter}{2}
+\input{chapters/03-design}
+% \input{chapters/04-implementation}
 % \input{chapters/05-summary}
 % \input{chapters/06-reflection}
 \clearpage
-\newcount\ReportBodyPages
-\ReportBodyPages=\numexpr\value{page}-1\relax
-\typeout{REPORT-BODY-PAGES=\the\ReportBodyPages}
-\ifnum\ReportBodyPages=20\else
-  \PackageError{report}{The implementation body must be exactly 20 pages}{Adjust the implementation content without changing the base typography.}
+% 本次编译第3章和附录。
+\newcount\ReportAppendixStart
+\ReportAppendixStart=\value{page}
+\input{chapters/appendix}
+\clearpage
+\newcount\ReportAppendixPages
+\ReportAppendixPages=\numexpr\value{page}-\ReportAppendixStart\relax
+\typeout{REPORT-APPENDIX-PAGES=\the\ReportAppendixPages}
+\ifnum\ReportAppendixPages>6
+  \PackageError{report}{The appendix must not exceed 6 pages}{Shorten reference material instead of shrinking the text.}
 \fi
-% 本次仅编译本人负责的第4章，其他成员的附录保留源码，不启用。
-% \newcount\ReportAppendixStart
-% \ReportAppendixStart=\value{page}
-% \input{chapters/appendix}
-% \clearpage
-% \newcount\ReportAppendixPages
-% \ReportAppendixPages=\numexpr\value{page}-\ReportAppendixStart\relax
-% \typeout{REPORT-APPENDIX-PAGES=\the\ReportAppendixPages}
-% \ifnum\ReportAppendixPages>6
-%   \PackageError{report}{The appendix must not exceed 6 pages}{Shorten reference material instead of shrinking the text.}
-% \fi
 \end{document}

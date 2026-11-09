@@ -1,47 +1,16 @@
 % Page 5: account/matching/draw ER, including global tables.
 \section{数据关系与状态设计}
 \subsection{账号、匹配与抽取的数据关系}
-账号是资料、互动和相遇记录的归属中心。图\ref{fig:design-er-account}展示这些记录如何围绕用户组织，
-并单独列出登录保护与历史维护记录。三个 ER 视图共享账号实体；
-实线表示实际外键，虚线表示应用逻辑关系，基数从父记录读向子记录，账号关联沿共用干线展开。
+图\ref{fig:design-er-account}从账号出发画出资料、互动、相遇和抽取记录，也列出了登录保护和历史维护相关记录。三张 ER 图共享账号实体。实线表示数据库外键，虚线表示应用层的逻辑关系。基数由父记录指向子记录，账号关联沿共用干线展开。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportentity,text width=40mm,font=\small] (u) at (-4.8,-2.7) {\DesignCode{users}\\账号与个人资料};
-\node[reportentity,text width=49mm,font=\small] (s) at (2.4,0) {\DesignCode{sessions}\\归属账号的登录记录};
-\node[reportentity,text width=49mm,font=\small] (st) at (2.4,-1.35) {\DesignCode{states}\\本人虚拟互动记录};
-\node[reportentity,text width=49mm,font=\small] (mp) at (2.4,-2.7) {\DesignCode{matching_profiles}\\本人介绍与相遇标签};
-\node[reportentity,text width=49mm,font=\small] (dr) at (2.4,-4.05) {\DesignCode{draw_records}\\本人的历次相遇卡片};
-\node[reportentity,text width=49mm,font=\small] (dc) at (2.4,-5.55) {\DesignCode{draw_collection}\\本人收藏与对象类型};
-\node[reportentity,text width=49mm,font=\small] (cool) at (2.4,-7.2) {\DesignCode{draw_cooldowns}\\对象类型与冷却期限};
-\node[reportentity,text width=49mm,font=\small] (on) at (2.4,-8.7) {\DesignCode{draw_onboarding}\\本人相遇初始化记录};
-\node[reportentity,text width=40mm,font=\small] (la) at (-4.8,-5.1) {\DesignCode{login_attempts}\\登录失败与访问保护\\独立保存访问尝试};
-\node[reportentity,text width=40mm,font=\small] (mig) at (-4.8,-7.2) {\DesignCode{app_migrations}\\全库历史维护记录\\记录已执行的迁移};
-\node[reportbox,text width=100mm] (poly) at (0,-10.4) {对象类型决定逻辑关联：真人对应账号，虚拟对象对应内置人物\\按对象类型与标识定位相遇目标};
-\draw (u.east) -- (-1.7,-2.7);
-\draw (-1.7,0) -- (-1.7,-8.7);
-\draw (-1.7,0) -- node[reportlabel,above]{1:0..N} (s.west);
-\draw (-1.7,-1.35) -- node[reportlabel,above]{1:0..1} (st.west);
-\draw (-1.7,-2.7) -- node[reportlabel,above]{1:0..1} (mp.west);
-\draw (-1.7,-4.05) -- node[reportlabel,above]{1:0..N} (dr.west);
-\draw (-1.7,-5.55) -- node[reportlabel,above]{1:0..N} (dc.west);
-\draw (-1.7,-7.2) -- node[reportlabel,above]{1:0..N} (cool.west);
-\draw (-1.7,-8.7) -- node[reportlabel,above]{1:0..1} (on.west);
-\draw[dashed] (dr.east) -- (5.8,-4.05) -- (5.8,-7.2);
-\draw[dashed] (dc.east) -- (5.8,-5.55);
-\draw[dashed] (cool.east) -- (5.8,-7.2);
-\draw[reportarrow,dashed] (5.8,-7.2) -- (5.8,-10.4) -- (poly.east);
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{assets/design/account-matching-er.pdf}
 \caption{ER 视图一：账号资料与相遇记录的归属关系}\label{fig:design-er-account}
 \end{figure}
 
-主键区分记录，外键明确归属或关联，图中实体名称用于对应数据职责。
-每个账号至多一份虚拟状态和一份匹配资料，相遇历史则允许保留多次结果。
-已有待决定卡片时先继续处理该卡，再寻找下一位对象，使选择有明确的前后次序。
+主键标识单条记录，外键标明记录归属或关联对象。一个账号最多有一份虚拟状态和一份匹配资料，相遇历史可以存多次结果。若上一张卡片仍待处理，用户再次进入会先看到这张卡。
 
-收藏体现本人对对象的选择，另一位用户可以独立收藏同一对象；跳过后的冷却则减少近期重复遇见。
-真人与虚拟对象共用卡片形式，按对象类型分别查阅账号资料或内置人物资料。
-数据查阅摘要见附录表\ref{tab:compact-data}。
+收藏按用户分别记录，两个人可以各自收藏同一个对象。跳过后设冷却期，以减少短期内重复抽到同一对象的情况。真人和虚拟人物用同样的卡片样式，显示时按对象类型读取账号资料或内置人物资料。数据摘要见附录表\ref{tab:compact-data}。
 
 \clearpage

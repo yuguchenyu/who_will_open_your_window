@@ -1,23 +1,15 @@
 \clearpage
 \section{标签提取与双向匹配设计}
 \label{sec:design-matching}
-标签匹配将自我介绍与交流期待整理为本人标签和期望标签，便于统一比较。
-用户填写有效介绍并同意展示后，系统保存文字，再从固定词表提取标签，形成可参与匹配的资料。
+介绍里有两类信息，一类描述用户本人，一类描述希望遇到的人。用户提交有效介绍并同意展示后，系统先保存原文，再从固定词表中提取本人标签和期望标签。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportbox,text width=101mm] (save) at (0,0) {确认介绍与展示同意；保存文字，旧标签退出匹配};
-\node[reportbox,text width=101mm] (model) at (0,-1.15) {从固定词表提取本人标签与期望标签};
-\node[reportbox,text width=101mm] (check) at (0,-2.3) {核对介绍仍一致；保存有效标签，资料重新参与匹配};
-\draw[reportarrow] (save.south) -- (model.north);
-\draw[reportarrow] (model.south) -- (check.north);
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{assets/design/tag-matching.pdf}
 \caption{从介绍提交到匹配资料就绪的更新流程}\label{fig:design-tags}
 \end{figure}
 
-更新介绍时先停用旧标签，提取结果与当前介绍一致后重新参与匹配。
-设本人标签为 $S_a$、期望标签为 $D_a$，候选 $b$ 同理，评分兼顾双方期望：
+修改介绍后，旧标签先退出匹配。等提取结果对应的介绍与当前介绍一致，账号才重新参与匹配。记用户 $a$ 的本人标签为 $S_a$、期望标签为 $D_a$，候选 $b$ 的标签同样记。下面分别计算两个人的期望满足率。
 \begin{equation}
  r_{a\to b}=\frac{|D_a\cap S_b|}{|D_a|},\qquad
  r_{b\to a}=\frac{|D_b\cap S_a|}{|D_b|}.
@@ -28,7 +20,7 @@ M(a,b)=\begin{cases}
 \operatorname{round}[50(r_{a\to b}+r_{b\to a})],&\text{其余}.
 \end{cases}\label{eq:design-match}
 \end{equation}
-标签就绪且期望非空才参与评分。任一方向无交集则归零，其余取双向满足率平均值换算为整数分。
+标签就绪、期望标签非空后才能算分。只要有一方的期望与对方标签完全不重合，分数就是0。其余情况取两个满足率的平均值，换算成整数分。
 
 \begin{table}[H]
 \centering\small
@@ -41,6 +33,5 @@ $1$ & $0$ & 0 & 单向满足，不进入候选池 \\
 \bottomrule
 \end{tabularx}
 \end{table}
-达到60分的对象再按收藏、冷却和联系状态筛选。卡片以本人期望与对方本人标签的交集展示共同标签，
-帮助用户了解匹配依据，并通过纸条发起交流。
+匹配分达到60后，还需按收藏、冷却和联系状态筛选。卡片上展示的是本人期望标签与对方本人标签的交集。用户可以先看具体有哪些标签重合，再决定要不要发纸条。
 

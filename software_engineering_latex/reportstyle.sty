@@ -80,6 +80,13 @@
   ]{FandolSong-Regular.otf}
 }
 
+% 补齐宋体中缺失的字形（如人名中的“喆”）。
+\IfFontExistsTF{Songti SC}{
+  \xeCJKsetup{AutoFallBack=true}
+  \setCJKfallbackfamilyfont{\CJKrmdefault}{Songti SC}
+  \setCJKfallbackfamilyfont{zhsong}{Songti SC}
+}{}
+
 % 中文标题字体：有黑体时使用黑体，否则使用 Fandol 黑体。
 \IfFontExistsTF{SimHei}{
   \setCJKsansfont[AutoFakeBold=2]{SimHei}

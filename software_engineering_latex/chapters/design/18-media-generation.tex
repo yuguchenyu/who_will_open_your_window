@@ -1,40 +1,15 @@
 \clearpage
 \section{本人素材与情绪立绘生成流程}
 \label{sec:design-generation}
-头像、背景与个人立绘分别服务身份识别、页面氛围和聊天展示，用户可在形象设置中统一管理。
-个人情绪图用于真人聊天中的本人形象展示，以已保存的默认立绘为基础，保持不同情绪下的形象连贯。
+用户可以在形象设置里管理头像、背景和个人立绘。头像用来辨认用户，背景用于个人页面，立绘用于真人聊天中的本人展示。生成情绪图要先有默认立绘，以保持不同表情下的人物外观一致。
 
-生成流程从准备默认立绘开始，用户选择希望表达的情绪并确认生成，系统据此制作对应的形象。
-已有立绘提供稳定的人物基础，情绪选择决定本次结果的表达方向。
-后台处理期间，用户可以继续交流，并在形象设置中查看任务进度。
-
-每个账号一次处理一个生成中或待确认任务，使素材选择、预览和保存围绕同一个结果展开。
-完成确认或放弃后，再开始下一次形象调整。生成额度在设置页面展示，便于安排后续尝试。
+用户选择情绪，并授权将默认立绘发送给 AI 服务后，后台开始生成。相同账号用同一请求编号重试同一情绪时，服务端复用原任务。等待期间可以继续聊天，也可以在设置页查看进度。一个账号同一时间只能有一个生成中或待确认的任务，待确认的结果要先保存或放弃，之后才能发起下一次生成。滚动 24 小时内每个账号最多创建 12 个生成任务，服务端同时运行的生成任务最多 2 个。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportbox,text width=27mm] (run) at (-4.7,0) {生成中\\后台处理};
-\node[reportbox,text width=27mm] (ready) at (0,0) {待确认\\本人预览};
-\node[reportentity,text width=27mm] (saved) at (4.7,0) {已保存\\情绪图更新};
-\node[reportentity,text width=27mm] (failed) at (-4.7,-2.2) {生成失败\\原图保留};
-\node[reportentity,text width=27mm] (drop) at (0,-2.2) {已放弃\\预览移除};
-\draw[reportarrow] (run.east) -- node[reportlabel,above,align=center]{成功且\\图像有效} (ready.west);
-\draw[reportarrow] (ready.east) -- node[reportlabel,above,align=center]{确认且\\素材一致} (saved.west);
-\draw[reportarrow] (run.south) -- node[reportlabel,right,align=left]{失败/超时\\重启中断} (failed.north);
-\draw[reportarrow] (ready.south) -- node[reportlabel,right]{放弃} (drop.north);
-\draw[reportarrow] (failed.east) -- node[reportlabel,above]{放弃} (drop.west);
-\draw[reportarrow] ([xshift=-5mm]ready.north) -- (-.5,1.15) -- (.5,1.15) -- ([xshift=5mm]ready.north);
-\node[reportlabel,above] at (0,1.15) {素材变化：保留预览};
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{assets/design/portrait-generation.pdf}
 \caption{情绪立绘从生成到确认的状态流转}\label{fig:design-generation}
 \end{figure}
 
-结果通过检查后进入本人私有预览，用户查看表情、人物形象和整体效果，再选择保存或放弃。
-预览让形象调整成为一个逐步选择的过程：先确定情绪，再观察候选结果，最后决定是否采用。
-确认保存后，对应情绪图更新，并用于后续真人聊天中的形象展示。
-
-例如，用户希望补充一张开心立绘，可以以默认形象发起生成，预览满意后保存到该情绪位置。
-若结果与预期不同，则放弃这次预览并重新选择；生成失败时保留现有形象，提示用户再次尝试。
-任务状态将等待、查看和选择串联起来，个人形象由此在连续的使用过程中逐步完善。
+图片通过检查后，只有本人能看到预览。以开心立绘为例，用户可以先检查表情和人物形象是否合适，确认后，图片保存为开心状态下的立绘，供真人聊天读取。用户也可以放弃预览。生成失败时保留现有立绘，并提示重试。
 

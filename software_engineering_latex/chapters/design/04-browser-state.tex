@@ -1,21 +1,10 @@
 % Page 4: browser snapshots, local UI state and polling.
 \subsection{浏览器快照、UI 状态与轮询}
-浏览器取得服务端记录后展示相遇卡片、纸条、聊天与形象，
-草稿、当前对象和弹窗选择留在界面侧。页面刷新已保存内容时，保留本次编辑状态。
+卡片、纸条、消息和形象从服务端读取。草稿、正在查看的对象和弹窗里的选择先留在浏览器里，刷新服务端数据时仍保留这些界面状态。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportbox,text width=108mm] (me) at (0,0) {进入页面：取得本人资料、互动记录与形象摘要};
-\node[reportbox,text width=108mm] (restore) at (0,-1.5) {恢复本次浏览器会话中的草稿与本人风格偏好\\继续加载背景、生成进度、相遇卡片与真人交流};
-\node[reportbox,text width=108mm] (render) at (0,-3.1) {展示当前结果；编辑留作草稿，处理结果更新对应内容};
-\node[reportentity,text width=47mm,font=\small] (poll) at (-3.5,-4.8) {页面可见且需要同步时刷新\\内容变化才更新展示};
-\node[reportentity,text width=47mm,font=\small] (act) at (3.5,-4.8) {用户提交动作或文本\\成功清草稿，失败保留输入};
-\draw[reportarrow] (me.south) -- (restore.north);
-\draw[reportarrow] (restore.south) -- (render.north);
-\draw[reportarrow] (render.south) -- (0,-3.9) -| (poll.north);
-\draw[reportarrow] (0,-3.9) -| (act.north);
-\end{tikzpicture}
+\includegraphics[width=.81\linewidth]{assets/design/browser-state.pdf}
 \caption{页面启动、记录同步与草稿保留流程}\label{fig:design-browser-snapshot}
 \end{figure}
 
@@ -32,13 +21,10 @@
 \end{tabularx}
 \end{table}
 
-页面可见且符合场景条件时定期查询变化，重绘时恢复输入、焦点及聊天阅读位置。
-例如写纸条时收到另一条联系，草稿仍可继续编辑，新记录按页面条件更新，减少同步打扰。
+轮询只在已登录且页面可见时执行。聊天页每 2 秒同步真人交流，形象设置打开或有生成任务运行时每 2 秒查询生成状态。相遇和纸条相关记录在对应页面按 6 秒间隔检查，并在交互繁忙时暂停相应刷新。重绘会恢复输入内容、焦点和聊天阅读位置。比如正在写纸条时收到一条新联系，页面可以更新收件记录，用户还能接着写原来的草稿。
 
-提交成功后清除相应草稿，失败时保留输入供修改或重试。登录失效后引导重新登录，并通过暂存草稿接续编辑；
-请求中断或超时则保留输入并提示查询发送结果。浏览器暂存支持继续编辑，
-服务端返回的消息与登录记录用于更新发送状态和当前身份。
+提交成功后清除对应草稿，提交失败则保留输入。会话失效时，浏览器先暂存草稿，再引导重新登录。如果请求中断或超时，页面保留输入并提示先查看是否发出。消息发送结果和登录身份均以服务端返回的记录为准。
 
-表达建议和情绪展示按当前场景使用，详见第\ref{sec:design-guidance}节。
+纸条和聊天里的表达建议与情绪展示见第\ref{sec:design-guidance}节。
 
 \clearpage

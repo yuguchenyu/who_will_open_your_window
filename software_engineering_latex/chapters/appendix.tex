@@ -329,10 +329,11 @@
 \label{chap:appendix-design-compact}
 
 \section{接口摘要}
-本节按业务分组摘录代表接口，不是全量路由清单。路径相对服务根地址；
-除公开状态、注册和登录外，业务接口需要有效的 \DesignCode{hw_session} Cookie。
-POST 接口接受同源 JSON；成功响应直接返回业务对象，不统一套 \DesignCode{data}，
-图片读取返回二进制。失败 JSON 含 \DesignCode{error} 和 \DesignCode{code}。
+下表按功能列出常用接口，便于查找一次操作需要提交哪些信息，以及服务端会返回什么。表中的路径接在服务地址后面。例如，发纸条时，页面向 \DesignCode{/api/real/note} 提交收件人编号和正文。
+
+除了公开状态、注册和登录，使用这些接口前需要先登录。浏览器会随请求带上 \DesignCode{hw_session} Cookie，服务端据此识别当前账号。页面通过 POST 向同一站点提交 JSON 数据。
+
+请求成功时，可直接读取返回字段。例如，发起立绘生成后，可直接从 \DesignCode{job} 字段查看任务信息。读取图片时，服务端直接返回图片内容。请求失败时，\DesignCode{error} 提供可展示的错误说明，\DesignCode{code} 供程序判断错误类型。
 
 \begingroup
 \setlength{\tabcolsep}{3pt}
@@ -343,39 +344,33 @@ POST 接口接受同源 JSON；成功响应直接返回业务对象，不统一�
 \toprule 方法与路径 & 代表输入 & 输出及特殊约束 \\ \midrule\endhead
 \midrule\multicolumn{3}{r}{接下页}\\\endfoot
 \bottomrule\endlastfoot
-\multicolumn{3}{l}{\textbf{身份与启动快照}}\\ \midrule
-POST \DesignCode{/api/register} & \DesignCode{username}、\DesignCode{password}、两段介绍、\DesignCode{shareForMatching=true} & \DesignCode{user}、\DesignCode{matchingProfile}，设置 Cookie；标签失败不撤销账号。\\
-POST \DesignCode{/api/login}；GET \DesignCode{/api/me} & 登录用用户名、密码；快照用 Cookie & 登录返回 \DesignCode{user}、\DesignCode{replacedDevice}；快照含状态、匹配资料、媒体版本及模型可用性。\\
+\multicolumn{3}{l}{\textbf{注册、登录与个人状态}}\\ \midrule
+POST \DesignCode{/api/register} & \DesignCode{username}、\DesignCode{password}、两段介绍、\DesignCode{shareForMatching=true} & \DesignCode{user}、\DesignCode{matchingProfile}，设置 Cookie；标签提取失败后仍可登录重试。\\
+POST \DesignCode{/api/login}；GET \DesignCode{/api/me} & 登录用用户名、密码；读取个人状态时带登录 Cookie & 登录返回 \DesignCode{user}、\DesignCode{replacedDevice}；个人状态包含互动记录、匹配资料、媒体版本及模型可用性。\\
 \multicolumn{3}{l}{\textbf{匹配与抽取}}\\ \midrule
-POST \DesignCode{/api/match-profile} & \DesignCode{selfIntro}、\DesignCode{desiredIntro}、展示同意 & 清旧标签后分析；返回资料及 \DesignCode{matchingError}，失败可重试。\\
-GET / POST \DesignCode{/api/draw}；POST \DesignCode{/api/draw/decision} & 抽取无业务字段；决定用 \DesignCode{drawId}、\DesignCode{decision=like/skip} & 返回抽取状态；复用待决定结果，已处理决定可重复提交。空池或满收藏返回409。\\
+POST \DesignCode{/api/match-profile} & \DesignCode{selfIntro}、\DesignCode{desiredIntro}、展示同意 & 先清除旧标签，再提取新标签；返回资料及 \DesignCode{matchingError}，失败可重试。\\
+GET / POST \DesignCode{/api/draw}；POST \DesignCode{/api/draw/decision} & 抽取时无需额外参数；决定用 \DesignCode{drawId}、\DesignCode{decision=like/skip} & 返回抽取状态；复用待决定结果，已处理决定可重复提交。无候选或收藏已满时返回 409。\\
 \multicolumn{3}{l}{\textbf{真人通信与交流参考}}\\ \midrule
-GET \DesignCode{/api/real}；POST \DesignCode{/api/real/note} & 读取用 Cookie；发纸条用 \DesignCode{recipientId}、\DesignCode{text} & 返回纸条和会话快照；发纸条要求真人收藏、接收许可及100字内正文。\\
+GET \DesignCode{/api/real}；POST \DesignCode{/api/real/note} & 读取用 Cookie；发纸条用 \DesignCode{recipientId}、\DesignCode{text} & 返回近期纸条和会话记录；发纸条要求真人收藏、接收许可及100字内正文。\\
 POST \DesignCode{/api/real/respond}；POST \DesignCode{/api/real/message} & 回应用 \DesignCode{noteId}、接受/拒绝及回信；聊天用 \DesignCode{conversationId}、正文 & 接受返回会话编号及快照；仅收件人回应，仅参与者发消息，聊天限500字。\\
-GET \DesignCode{/api/real/favorability}；POST \DesignCode{/api/real/favorability/analyze} & GET 查询或 POST 正文中的 \DesignCode{conversationId} & 双方开关控制 \DesignCode{canView}；读取缓存/规则，主动分析失败降级规则。\\
+GET \DesignCode{/api/real/favorability}；POST \DesignCode{/api/real/favorability/analyze} & GET 查询或 POST 正文中的 \DesignCode{conversationId} & 双方开关控制 \DesignCode{canView}；查询时复用缓存或按规则计算，模型分析失败时按规则评分。\\
 \multicolumn{3}{l}{\textbf{虚拟互动与 AI 辅助}}\\ \midrule
-POST \DesignCode{/api/action}；POST \DesignCode{/api/reply} & 动作用 \DesignCode{type} 及参数；回复用 \DesignCode{personId} & 动作返回 \DesignCode{state}、\DesignCode{result}，不接受整份状态；回复按已存历史生成并落库。\\
+POST \DesignCode{/api/action}；POST \DesignCode{/api/reply} & 动作用 \DesignCode{type} 及参数；回复用 \DesignCode{personId} & 动作返回 \DesignCode{state}、\DesignCode{result}，不接受整份状态；根据聊天历史生成回复并保存。\\
 POST \DesignCode{/api/suggestions}；POST \DesignCode{/api/guidance} & 草稿、上下文、风格；理解用人物/会话编号及 \DesignCode{messageId} & 三条建议；理解还含解释、情绪、消息及风格标识。生成不自动代发，过期消息拒绝分析。\\
 \multicolumn{3}{l}{\textbf{媒体上传与立绘生成}}\\ \midrule
 POST \DesignCode{/api/media} & \DesignCode{action=save/delete}、用途、情绪；保存用 Data URL & 返回 \DesignCode{media} 摘要；头像、背景、立绘分开管理，校验签名和大小。\\
 POST \DesignCode{/api/portraits/generate}；GET \DesignCode{/api/portraits/generation} & 创建用 \DesignCode{emotion}、\DesignCode{consent=true}、\DesignCode{requestId} & 创建返回202及 \DesignCode{job}；查询本人最近任务和可用性；已有待处理任务返回409。\\
-POST \DesignCode{/api/portraits/apply}；GET \DesignCode{/api/portraits/generation/:id/image} & 确认用 \DesignCode{jobId}；预览用本人任务编号 & 确认核对参考图及目标版本，重复保存幂等；仅就绪预览返回 PNG，旧版本返回409。\\
+POST \DesignCode{/api/portraits/apply}；GET \DesignCode{/api/portraits/generation/:id/image} & 确认用 \DesignCode{jobId}；预览用本人任务编号 & 确认核对参考图及目标版本，重复确认返回当前结果；仅就绪预览返回 PNG，旧版本返回409。\\
 \end{longtable}
 \endgroup
 
-共通错误包括400 \DesignCode{INVALID_INPUT}、401 \DesignCode{UNAUTHENTICATED}/
-\DesignCode{SESSION_REPLACED}、403 \DesignCode{FORBIDDEN}、404 \DesignCode{NOT_FOUND}、
-413 \DesignCode{TOO_LARGE}及429 \DesignCode{BUSY}/\DesignCode{RATE_LIMITED}。
-文本上游失败通常为502（如 \DesignCode{TIMEOUT}、\DesignCode{NETWORK}、\DesignCode{FORMAT}）；
-未配置服务为503。生图后台失败写入任务状态，不将上游原始响应直接交给浏览器。
-建议生成、用户消费和实际发送的控制流程见第\ref{sec:design-guidance}节。
+常见错误可以先看 HTTP 状态码。400 表示输入需要修改（\DesignCode{INVALID_INPUT}），401 表示需要登录或原会话已被替换（\DesignCode{UNAUTHENTICATED}、\DesignCode{SESSION_REPLACED}）。403 表示没有访问权限（\DesignCode{FORBIDDEN}），404 表示找不到资源（\DesignCode{NOT_FOUND}），413 表示请求过大（\DesignCode{TOO_LARGE}）。429 表示服务繁忙或操作已达额度（\DesignCode{BUSY}、\DesignCode{RATE_LIMITED}）。
+
+外部文本模型超时、连接失败或结果格式有误时，通常返回 502（\DesignCode{TIMEOUT}、\DesignCode{NETWORK}、\DesignCode{FORMAT}）。服务未配置时返回 503。立绘生成在后台运行，页面通过查询任务状态得知失败原因。从生成建议到用户选择并发送消息的流程见第\ref{sec:design-guidance}节。
 
 \clearpage
 \section{数据表与关键字段索引}
-表\ref{tab:compact-data}覆盖18张应用表，仅列主键、关键外键和职责，不展开字段类型、
-默认值或虚拟状态内部结构。PK 表示主键，FK 表示声明外键；记 U 为 \DesignCode{users.id}，
-C 为 \DesignCode{real_conversations.id}。所有声明 FK 均级联删除；
-\DesignCode{sqlite_sequence} 是系统表，不计入18表。
+表\ref{tab:compact-data}列出项目的 18 张应用表。PK 是主键，用来唯一标识一条记录。FK 是外键，用来指向另一张表中的记录。表中 U 代表账号编号 \DesignCode{users.id}，C 代表会话编号 \DesignCode{real_conversations.id}。删除被引用的记录时，数据库会自动删除通过外键引用它的记录。字段类型、默认值和虚拟状态的内部结构可查阅源码。\DesignCode{sqlite_sequence} 是 SQLite 的系统表，未计入这 18 张表。
 
 \begingroup
 \setlength{\tabcolsep}{3pt}
@@ -386,33 +381,31 @@ C 为 \DesignCode{real_conversations.id}。所有声明 FK 均级联删除；
 \toprule 表名 & 主键与关键外键 & 职责及必要字段 \\ \midrule\endhead
 \midrule\multicolumn{3}{r}{接下页}\\\endfoot
 \bottomrule\endlastfoot
-1. \DesignCode{users} & PK \DesignCode{id}；无 FK & 账号、密码摘要及权威展示资料；\DesignCode{username} 唯一且不区分大小写。\\
+1. \DesignCode{users} & PK \DesignCode{id}；无 FK & 账号、密码摘要和当前展示资料；\DesignCode{username} 唯一且不区分大小写。\\
 2. \DesignCode{sessions} & PK \DesignCode{token_hash}；FK \DesignCode{user_id} $\to$ U & 服务端会话；\DesignCode{active}、\DesignCode{expires_at} 控制有效性。\\
-3. \DesignCode{states} & PK/FK \DesignCode{user_id} $\to$ U & 虚拟互动 \DesignCode{json}，不存权威 \DesignCode{profile}。\\
-4. \DesignCode{login_attempts} & PK \DesignCode{key}；无 FK & 全局失败窗口；\DesignCode{failures}、\DesignCode{first_at}。\\
-5. \DesignCode{matching_profiles} & PK/FK \DesignCode{user_id} $\to$ U & 两段介绍及本人/期望标签；\DesignCode{status} 表示标签就绪性。\\
+3. \DesignCode{states} & PK/FK \DesignCode{user_id} $\to$ U & 以 \DesignCode{json} 保存虚拟互动状态，账号资料从用户表读取。\\
+4. \DesignCode{login_attempts} & PK \DesignCode{key}；无 FK & 登录失败计数；\DesignCode{failures}、\DesignCode{first_at}。\\
+5. \DesignCode{matching_profiles} & PK/FK \DesignCode{user_id} $\to$ U & 两段介绍及本人/期望标签；\DesignCode{status} 表示标签是否已提取完成。\\
 6. \DesignCode{draw_records} & PK \DesignCode{id}；FK \DesignCode{user_id} $\to$ U & 抽取快照、\DesignCode{kind}、\DesignCode{person_id}、决定状态及归档日。\\
-7. \DesignCode{draw_collection} & PK (\DesignCode{user_id},\DesignCode{kind},\DesignCode{person_id})；FK \DesignCode{user_id} $\to$ U & 有方向的真人/虚拟收藏；\DesignCode{snapshot}、\DesignCode{added_at}。\\
+7. \DesignCode{draw_collection} & PK (\DesignCode{user_id},\DesignCode{kind},\DesignCode{person_id})；FK \DesignCode{user_id} $\to$ U & 记录当前账号收藏的真人或虚拟人物；\DesignCode{snapshot}、\DesignCode{added_at}。\\
 8. \DesignCode{draw_onboarding} & PK/FK \DesignCode{user_id} $\to$ U & 一次性演示收藏导入标记，移除后不补回。\\
-9. \DesignCode{draw_cooldowns} & PK (\DesignCode{user_id},\DesignCode{kind},\DesignCode{person_id})；FK \DesignCode{user_id} $\to$ U & 人物冷却到期值 \DesignCode{until_at}。\\
-10. \DesignCode{user_portraits} & PK (\DesignCode{user_id},\DesignCode{emotion})；FK \DesignCode{user_id} $\to$ U & 历史六情绪图片 BLOB 归档，不作当前聊天立绘。\\
-11. \DesignCode{user_sprites} & PK (\DesignCode{user_id},\DesignCode{emotion})；FK \DesignCode{user_id} $\to$ U & 默认及六情绪立绘 BLOB；\DesignCode{updated_at} 为单调版本。\\
+9. \DesignCode{draw_cooldowns} & PK (\DesignCode{user_id},\DesignCode{kind},\DesignCode{person_id})；FK \DesignCode{user_id} $\to$ U & 记录人物何时可再次被抽到 \DesignCode{until_at}。\\
+10. \DesignCode{user_portraits} & PK (\DesignCode{user_id},\DesignCode{emotion})；FK \DesignCode{user_id} $\to$ U & 归档旧版六种情绪图片，供迁移和备查。\\
+11. \DesignCode{user_sprites} & PK (\DesignCode{user_id},\DesignCode{emotion})；FK \DesignCode{user_id} $\to$ U & 默认及六情绪立绘 BLOB；\DesignCode{updated_at} 随立绘更新而递增。\\
 12. \DesignCode{app_migrations} & PK \DesignCode{name}；无 FK & 全库迁移标记，防止重复迁移。\\
 13. \DesignCode{portrait_generation_jobs} & PK \DesignCode{id}；FK \DesignCode{user_id} $\to$ U；唯一 (\DesignCode{user_id},\DesignCode{request_id}) & 任务状态、私有预览；\DesignCode{source_hash}、\DesignCode{target_version} 支持确认校验。\\
 14. \DesignCode{user_media} & PK (\DesignCode{user_id},\DesignCode{kind})；FK \DesignCode{user_id} $\to$ U & 头像/个人背景 BLOB，不含聊天立绘。\\
 15. \DesignCode{real_notes} & PK \DesignCode{id}；FK \DesignCode{sender_id}、\DesignCode{recipient_id} $\to$ U & 真人纸条正文、状态、投递及回应时间。\\
 16. \DesignCode{real_conversations} & PK \DesignCode{id}；FK \DesignCode{user_a}、\DesignCode{user_b} $\to$ U；唯一/FK \DesignCode{note_id} $\to$ \DesignCode{real_notes.id} & 双人会话；(\DesignCode{user_a},\DesignCode{user_b}) 唯一，应用先排序。\\
-17. \DesignCode{real_messages} & 自增 PK \DesignCode{id}；FK \DesignCode{conversation_id} $\to$ C、\DesignCode{sender_id} $\to$ U & 聊天正文与时间；编号用于最近消息及缓存水位。\\
-18. \DesignCode{conversation_favorability} & PK (\DesignCode{conversation_id},\DesignCode{target_user_id})；两项 FK 分别 $\to$ C、U & 方向性参考分、\DesignCode{factors}及 \DesignCode{last_message_id} 水位。\\
+17. \DesignCode{real_messages} & 自增 PK \DesignCode{id}；FK \DesignCode{conversation_id} $\to$ C、\DesignCode{sender_id} $\to$ U & 聊天正文与时间；编号用于查找最新消息和判断缓存是否仍有效。\\
+18. \DesignCode{conversation_favorability} & PK (\DesignCode{conversation_id},\DesignCode{target_user_id})；两项 FK 分别 $\to$ C、U & 按分析对象保存交流参考分、\DesignCode{factors}及 \DesignCode{last_message_id} （计算时的末条消息编号）。\\
 \end{longtable}
 \endgroup
 
-抽取相关 \DesignCode{person_id} 按 \DesignCode{kind} 解释，属于多态编号而非 FK；
-缓存 \DesignCode{last_message_id} 也不是 FK，可取0。会话双方不同、缓存目标为对方、
-消息发件人为参与者均由应用校验，不可仅凭声明外键推断。
+抽取记录需结合 \DesignCode{kind} 来读 \DesignCode{person_id}。真人用账号编号，虚拟人物用内置人物编号，所以该字段没有声明外键。缓存中的 \DesignCode{last_message_id} 记录计算时的最后一条消息，无消息时填 0，也没有声明外键。会话双方须为不同账号，分析目标须为会话另一方，消息发送者须为会话参与者，这些条件由程序检查。
 
 \section{索引、额度与时间口径}
-以下为当前 DDL 的9个显式索引；主键和表内 UNIQUE 另提供键约束，不重复计数。
+下表列出建表脚本单独创建的 9 个索引。索引可加快查询，也可限制记录数量。例如，活跃会话索引保证每个账号最多只有一个活跃会话。主键和表内 UNIQUE 约束另计。
 \begingroup
 \setlength{\tabcolsep}{3pt}
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{.37\linewidth}>{\raggedright\arraybackslash}p{\dimexpr.63\linewidth-6pt\relax}@{}}
@@ -422,31 +415,30 @@ C 为 \DesignCode{real_conversations.id}。所有声明 FK 均级联删除；
 \toprule 索引名 & 定义与用途 \\ \midrule\endhead
 \midrule\multicolumn{2}{r}{接下页}\\\endfoot
 \bottomrule\endlastfoot
-\DesignCode{sessions_one_active} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{active=1}；单活跃会话。\\
+\DesignCode{sessions_one_active} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{active=1}；每个账号最多一个活跃会话。\\
 \DesignCode{sessions_by_user} & (\DesignCode{user_id})；按账号查询会话。\\
-\DesignCode{draw_one_pending} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{status='pending'}；单待决定抽取。\\
+\DesignCode{draw_one_pending} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{status='pending'}；每个账号最多一张待处理卡片。\\
 \DesignCode{portrait_job_pending} & UNIQUE (\DesignCode{user_id}) WHERE \DesignCode{status IN ('running','ready')}；运行及待处理预览合计最多一项。\\
 \DesignCode{portrait_job_recent} & (\DesignCode{user_id},\DesignCode{created_at DESC})；本人最近任务。\\
-\DesignCode{real_notes_recipient} & (\DesignCode{recipient_id},\DesignCode{created_at DESC})；收件快照。\\
-\DesignCode{real_notes_sender} & (\DesignCode{sender_id},\DesignCode{created_at DESC})；发件快照。\\
-\DesignCode{real_notes_one_pending} & UNIQUE (\DesignCode{sender_id},\DesignCode{recipient_id}) WHERE \DesignCode{status='pending'}；仅约束有向用户对，反向冲突由应用检查。\\
+\DesignCode{real_notes_recipient} & (\DesignCode{recipient_id},\DesignCode{created_at DESC})；按收件人查询近期纸条。\\
+\DesignCode{real_notes_sender} & (\DesignCode{sender_id},\DesignCode{created_at DESC})；按发件人查询近期纸条。\\
+\DesignCode{real_notes_one_pending} & UNIQUE (\DesignCode{sender_id},\DesignCode{recipient_id}) WHERE \DesignCode{status='pending'}；限制同一方向只能有一张待回应纸条，反向重复由程序检查。\\
 \DesignCode{real_messages_recent} & (\DesignCode{conversation_id},\DesignCode{id DESC})；最近消息。\\
 \end{longtable}
 \endgroup
 
-\noindent\textbf{额度。}应用限定收藏5个、真人纸条本地自然日2次、生图每账号滚动24小时12次
-（失败计次）；当前不限制每日抽取。文本/生图并发上限分别为单进程4/2，
-默认超时35/180秒，不是跨实例调度保障。
+\clearpage
+\noindent\textbf{操作额度。}每个账号最多收藏 5 位对象，每个服务器本地自然日最多向真人投递 2 张纸条。创建立绘任务时，系统检查过去 24 小时是否已创建 12 个任务，失败任务也计入。当前演示不限制每日抽取次数。
 
-\noindent\textbf{时间与读取。}普通时间为 Unix 毫秒；抽取 \DesignCode{day} 按 UTC+8 归档，
-不表示每日额度。虚拟周期自开始时间每7天划分，受演示偏移影响，全账号每周期一次确认。
-真人快照至多100纸条、50会话，每会话最近50消息；参考分读全量历史，缓存按末条消息编号复用，
-无新消息跨日不自动刷新。任务查询或创建时清理超过7天的非运行记录。
+\noindent\textbf{并发与超时。}单个服务进程的文本处理上限为 4 个并发请求，立绘生成上限为 2 个并发任务，默认超时分别为 35 秒和 180 秒。这些限制按进程计算。
+
+\noindent\textbf{时间计算。}常规时间字段保存 Unix 毫秒时间戳。抽卡的 \DesignCode{day} 按 UTC+8 记录抽取日期，用于归档。虚拟回望从互动开始时每 7 天进入新周期，演示时可向前推进日期。同一账号在每个周期内共用一次揭晓机会。
+
+\noindent\textbf{返回范围。}真人交流页面一次最多读取 100 张纸条和 50 个会话，每个会话返回最近 50 条消息。交流参考分读取完整聊天历史，末条消息编号一致时可复用缓存，跨日也不会自动重算。查询或创建立绘任务时，系统清理创建已超过 7 天且未在运行的任务。
 
 \clearpage
 \section{来源与证据位置}
-设计事实以当前项目源码为准，官方资料仅解释技术机制。下列业务路径相对项目根目录，
-证据路径相对报告目录；本次仅核对静态文件，不读取运行库、真实密钥或调用真实模型。
+以下文件可用于核对正文中的设计说明。源码路径从项目根目录查找，归档路径从报告目录查找。具体实现以项目源码为准。
 
 \noindent\textbf{源码入口。}
 \DesignCode{server.mjs} 与 \DesignCode{lib/http.mjs}、\DesignCode{lib/errors.mjs}
@@ -459,28 +451,10 @@ C 为 \DesignCode{real_conversations.id}。所有声明 FK 均级联删除；
 \DesignCode{lib/portrait-png.mjs}；客户端建议发送、轮询及立绘回退见
 \DesignCode{public/app.mjs}、\DesignCode{public/api.mjs}、\DesignCode{public/portraits.mjs}。
 
-\noindent\textbf{官方资料。}
-Node.js HTTP、Crypto 与 SQLite 文档：
-\url{https://nodejs.org/docs/latest-v24.x/api/http.html}、
-\url{https://nodejs.org/docs/latest-v24.x/api/crypto.html}、
-\url{https://nodejs.org/docs/latest-v24.x/api/sqlite.html}。
-SQLite 事务、WAL、部分索引及外键机制：
-\url{https://www.sqlite.org/lang_transaction.html}、
-\url{https://www.sqlite.org/wal.html}、
-\url{https://www.sqlite.org/partialindex.html}、
-\url{https://www.sqlite.org/foreignkeys.html}。
-建模术语参考 OMG UML 2.5.1：\url{https://www.omg.org/spec/UML/2.5.1/}。
-
 \noindent\textbf{已有归档。}
 \DesignCode{assets/report/provenance.txt} 保留2026年11月4日环境、Git 状态与源码摘要；
 \DesignCode{assets/report/regression.txt}、\DesignCode{assets/report/source-count.txt}
 为已有回归和统计记录。\DesignCode{assets/report/pdf-check/} 与
-\DesignCode{assets/report/layout-check.txt} 保存本轮最终页面渲染和独立页数核验。
+\DesignCode{assets/report/layout-check.txt} 保存归档时的页面渲染和页数核验结果。
 项目 \DesignCode{README.md}、\DesignCode{VERIFICATION.md}、\DesignCode{tests/}
-可供追溯，历史记录不自动等同于当前能力。
-
-\noindent\textbf{备查边界。}
-\DesignCode{chapters/appendix.tex} 中已注释的原始附录保留备查，
-不进入本次PDF；完整需求依据项目文档查询，原始字段和路由
-可按上述业务模块位置查询。
-正文解释设计过程，本附录提供接口、数据及索引的简短查阅入口。
+可用于查阅项目说明、验证方法和测试用例。

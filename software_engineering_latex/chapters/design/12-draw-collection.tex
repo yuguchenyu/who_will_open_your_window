@@ -1,44 +1,19 @@
 \clearpage
 \section{候选过滤、加权抽取与收藏冷却}
 \label{sec:design-drawing}
-相遇发现先检查资格，再在合格人选中随机选择，使新鲜感建立在可交流的基础上。
-本人需完成标签提取；真人候选排除本人、资料未就绪、不接收纸条、已有会话或双方任一方向有待回应纸条者，
-虚拟候选排除已屏蔽人物。两类候选分别识别，再排除已收藏、冷却未到期及匹配分低于60分的对象。
+相遇抽取分为资格筛选和加权抽样两个阶段。用户的匹配标签提取完成后，系统才开始筛选候选对象。真人候选要排除本人、匹配资料未就绪或关闭纸条接收的账号，以及已经建立会话或任一方向有待回应纸条的对象。虚拟候选排除已屏蔽人物。两类对象分别识别，都要再排除已收藏、还在冷却期或匹配分低于60的对象。
 
-以匹配分 $w_i=M(a,i)$ 作为权重，保留随机相遇，同时让更符合双方期望的人选有更高机会：
+通过筛选后，用匹配分 $w_i=M(a,i)$ 当权重。匹配分越高，抽中概率越大。
 \begin{equation}
 P(i\mid\text{本次候选池})=\frac{w_i}{\sum_jw_j}.\label{eq:design-draw}
 \end{equation}
-例如三位候选分数为60、80、100，抽中概率分别为25\%、$1/3$、$5/12$。
-高分者有更高的抽中机会，卡片颜色展示匹配档位。
+假设剩下三位候选，分数为60、80、100，抽中概率分别是25\%、$1/3$ 和 $5/12$。卡片颜色显示的是匹配档位。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportbox,text width=66mm] (a) at (-1.5,0) {确认当前账号，进入相遇发现};
-\node[reportbox,text width=66mm,below=8mm of a] (b) {已有待决定卡片？};
-\node[reportbox,text width=66mm,below=8mm of b] (c) {资料、容量与候选均符合条件？};
-\node[reportbox,text width=66mm,below=8mm of c] (d) {按匹配分加权发现，保存新卡片};
-\node[reportentity,text width=27mm] (reuse) at (4.9,0 |- b.center) {显示原卡片\\等待用户决定};
-\node[reportentity,text width=27mm] (err) at (4.9,0 |- c.center) {说明原因\\暂不抽取};
-\node[reportbox,text width=44mm,below=12mm of d.south,xshift=-21mm] (like)
- {喜欢：加入收藏\\完成本次决定};
-\node[reportbox,text width=44mm,below=12mm of d.south,xshift=36mm] (skip)
- {跳过：冷却30天\\完成本次决定};
-\draw[reportarrow] (a.south) -- (b.north);
-\draw[reportarrow] (b.east) -- node[reportlabel,above]{有} (reuse.west);
-\draw[reportarrow] (b.south) -- node[reportlabel,right]{无} (c.north);
-\draw[reportarrow] (c.east) -- node[reportlabel,above]{否} (err.west);
-\draw[reportarrow] (c.south) -- node[reportlabel,right]{是} (d.north);
-\coordinate[below=6mm of d.south] (decision);
-\draw[reportarrow] (d.south) -- (decision) -| (like.north);
-\draw[reportarrow] (decision) -| (skip.north);
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{assets/design/draw-flow.pdf}
 \caption{待决定卡片复用与收藏、跳过流程}\label{fig:design-draw-flow}
 \end{figure}
 
-待决定卡片持续保留，用户完成收藏或跳过后再抽取下一位对象。收藏上限为5位；
-资料未就绪、收藏已满或没有合适候选时说明原因，待条件改善后再尝试。
-收藏需符合容量及真人账号可用条件。跳过或移除收藏后，该对象冷却30天，减少短期重复出现；
-已有会话和虚拟交流历史继续保留，用户可接续聊天或回顾内容。
+当前演示不限制每日抽取次数。系统为每个账号保留至多一张待处理卡片，重复请求返回同一张卡，用户选择收藏或跳过后才允许抽取下一张。最多收藏5位，保存时还要确认真人账号仍可用。资料未就绪、收藏已满或找不到合适候选时，页面会显示具体原因。跳过或移除收藏会让该对象进入30天冷却，已有真人会话和虚拟交流历史仍能打开。
 

@@ -4,41 +4,18 @@
 
 % Page 1: project overview and overall architecture.
 \section{项目概述与总体架构}
-“谁能打开你的窗”是一款以低压力社交为目标的交流应用，将发现伙伴、纸条联系和日常聊天
-串联起来。用户填写个人介绍和相遇偏好后，可以发现合适的对象、加入收藏，再通过纸条开启交流。
+“谁能打开你的窗”是一款面向低压力社交场景的交流应用。用户填写个人介绍和相遇偏好后，可以通过相遇卡片浏览候选对象。发现感兴趣的对象时，用户可以先收藏，随后再通过纸条发起联系。
 
-系统采用 B/S 架构，整体组成如图\ref{fig:design-architecture}所示。浏览器提供操作界面，
-Node.js 服务端处理业务，SQLite 保存应用数据，外部 AI 服务为表达辅助、虚拟回复和立绘生成提供支持。
+项目采用 B/S 架构，图\ref{fig:design-architecture}给出了各部分的分工。用户在浏览器里操作，Node.js 服务端处理请求，SQLite 保存业务数据。表达建议、虚拟人物回复和立绘生成需要调用外部 AI 服务。
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-\node[reportbox,text width=116mm] (ui) at (0,0)
- {用户界面\\相遇、纸条、聊天、心笺回望与形象设置};
-\node[reportbox,text width=116mm] (http) at (0,-1.6)
- {服务端接口\\接收用户操作，返回业务结果};
-\node[reportbox,text width=116mm] (biz) at (0,-3.2)
- {核心业务\\账号与匹配、纸条与聊天、虚拟互动、AI辅助与形象管理};
-\node[reportentity,text width=48mm,font=\small] (db) at (-3.5,-4.9)
- {数据存储\\用户资料、互动记录与媒体资源};
-\node[reportentity,text width=48mm,font=\small] (ai) at (3.5,-4.9)
- {AI服务\\文本辅助、虚拟回复与立绘生成};
-\draw[reportarrow] (ui.south) -- node[reportlabel,right]{用户请求} (http.north);
-\draw[reportarrow] (http.south) -- (biz.north);
-\draw[reportarrow] (biz.south -| db.north) -- (db.north);
-\draw[reportarrow] (biz.south -| ai.north) -- (ai.north);
-\end{tikzpicture}
+\includegraphics[width=\linewidth]{assets/design/architecture.pdf}
 \caption{项目总体架构}\label{fig:design-architecture}
 \end{figure}
 
-真人交流是系统中的核心场景：用户通过相遇功能发现合适的伙伴，
-将感兴趣的对象加入收藏，并以纸条发起联系。
-对方接受纸条并回信后，双方即可进入聊天，逐步从初次相识发展为持续交流。
+真人交流分为发现对象、发起联系和建立会话三个阶段。收藏用于保留感兴趣的对象，发纸条则需要用户主动发起。收件人可以根据纸条内容决定是否接受，只有接受并回信后才建立会话。若邀请未获接受，发信人仍可继续浏览其他候选对象。
 
-收藏与纸条分开发现和聊天，让双方了解来意后选择是否交流。
-未获接受时仍可浏览其他对象，保留低压力的选择空间。
-
-虚拟互动提供内置人物交流、心笺与回望体验，作为日常表达与感受回顾的补充。
-AI 提供表达建议，由用户选择采用并发送；耗时任务展示进度，失败时提示重试。
+系统还提供内置人物、心笺和回望。AI 给出的表达建议由用户决定是否采用和发送。生成之类需要等待的操作会显示进度，失败时提示重试。
 
 \clearpage

@@ -1,7 +1,6 @@
 % Page 9: DDL constraints, indexes and access paths.
 \subsection{数据库约束与数据访问设计}
-数据访问服务于持续使用：查阅已有记录、保存操作结果，并在关键步骤中整体保存关联数据。
-系统按账号、会话和任务组织查询，通过参数化语句传入用户内容。
+常用查询以账号、会话或任务编号定位记录。输入内容通过参数化语句传入。数据库开启 WAL 和外键检查。注册、接受纸条和确认立绘等操作通过事务提交关联写入。
 
 \begin{table}[H]
 \centering\small\linespread{1.15}\selectfont
@@ -19,10 +18,7 @@
 \end{tabularx}
 \end{table}
 
-数据库通过外键明确归属，通过唯一约束保持记录唯一，业务检查根据当前条件决定能否操作。
-例如收藏最多5个、真人纸条每天2次、生成在滚动24小时内最多12次，
-这些额度在处理操作时检查；读取会话还须确认参与者。
-记录约束与业务规则配合，既保证记录有明确关系，也判断用户当前能否操作。
+外键和唯一约束用于维护记录之间的关系及唯一性，业务层另行校验操作权限与当前条件。比如收藏最多5个、真人纸条每天2次、立绘生成在滚动24小时内最多12次，服务端收到操作时才检查这些额度。读取会话前还需确认当前用户是会话参与者。
 
 \begin{table}[H]
 \centering\small\linespread{1.15}\selectfont
@@ -37,9 +33,6 @@
 \end{tabularx}
 \end{table}
 
-关联保存围绕同一业务步骤组织，把需要同步的结果集中处理。
-耗时任务先形成候选结果，再由用户确认进入保存步骤，使等待、选择和更新清楚衔接。
-主要操作的保存与衔接方式见第\ref{sec:design-consistency}节。
-访问约束的查阅摘要见附录表\ref{tab:compact-index}，数据与额度说明见附录\ref{chap:appendix-design-compact}。
+耗时生成先产出候选图，等用户确认再正式保存，这样用户等待期间仍可以做别的操作。关联记录的保存方式见第\ref{sec:design-consistency}节。访问约束和额度分别汇总在附录表\ref{tab:compact-index}和附录\ref{chap:appendix-design-compact}。
 
 \clearpage
