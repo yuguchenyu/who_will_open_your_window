@@ -1,0 +1,23 @@
+\clearpage
+\subsection{媒体管理与Qwen生图}
+\label{sec:impl-12-media}
+\par\medskip\noindent\textbf{独立资源与后台任务。}
+头像用于纸条和资料，个人立绘用于聊天舞台，背景仅属于本人场景；默认立绘与六种情绪图可分别上传。\DesignCode{validateMedia()}检查图片签名与字节大小，普通上传不调用模型。历史头像迁移不会把同一张图自动当作新立绘。
+
+当前源码默认生图模型为\DesignCode{qwen-image-2.1-pro}，按配置选择原生多模态协议或兼容图像生成协议，保留非Qwen的图片编辑兼容分支。本轮只使用模拟上游验证请求结构，未据此宣称线上模型已生成过某张图片。
+
+\begin{table}[H]\centering\small
+\caption{生成任务的状态与保存边界}
+\begin{tabularx}{\linewidth}{@{}p{25mm}X@{}}\toprule
+状态 & 处理及可验证结果 \\ \midrule
+running & 需要明确外发同意和本人默认立绘；后台等待不阻塞聊天 \\
+ready & 只保存账号私有预览，尚未覆盖情绪槽位 \\
+saved & 用户确认且参考图、目标版本仍一致后事务保存 \\
+failed & 超时、网络、格式或Alpha失败；保留旧立绘 \\
+discarded & 放弃预览并释放图片内容，不自动再次付费重试 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{响应下载与透明校验。}
+Qwen结果由服务端从受限HTTPS云存储地址下载，不向下载请求转发模型密钥，拒绝内部域名、任意主机和重定向。读取过程累计实际字节，不能只信Content-Length。\DesignCode{prepareGeneratedPortrait()}解码PNG、检查真实Alpha并控制最终大小，不把画出来的棋盘格当作透明。
+
+全局同时最多两个生图请求，每账号滚动二十四小时最多十二次，失败计次。预览保存前检查源图摘要与目标版本，防止旧图覆盖新上传；默认超时180秒，不自动重试。技术检查不验证人物一致性和画风质量，最终仍由用户预览确认。

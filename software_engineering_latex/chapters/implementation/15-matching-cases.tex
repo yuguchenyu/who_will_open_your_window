@@ -1,0 +1,22 @@
+\clearpage
+\noindent\textbf{匹配、抽取与收藏测试用例}\par\smallskip
+\label{sec:impl-15-matching-cases}
+\par\medskip\noindent\textbf{由规则导出数据组合。}
+匹配测试同时改变本人标签、期望标签及候选标签，形成双向满足、单向满足、无交集和资料未就绪四组数据。抽取测试在其上增加收藏、冷却和待决定状态，用可重复的夹具区分评分错误与候选资格错误。
+
+\begin{table}[H]\centering\small
+\caption{发现伙伴链路代表用例（FR-02至FR-04）}
+\begin{tabularx}{\linewidth}{@{}p{15mm}p{38mm}X@{}}\toprule
+编号 & 操作与输入 & 预期结果及检查点 \\ \midrule
+IT-05 & 合法标签混合未知兴趣；再试全未知输入 & 前者只保留合法值；后者报FORMAT，不保存空标签 \\
+IT-06 & 一方满足率为零；双方都满足再比较 & 单向总分归零，双向得分符合实现公式 \\
+IT-07 & 同账号连续请求抽取，原卡尚未决定 & 返回同一待决定记录，不绕过决定状态 \\
+IT-08 & 收藏已满、重复喜欢、移除后再抽取 & 不超容量、不重复占位；冷却期间排除目标 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{修复的回归证据。}
+\DesignCode{matching.test.mjs}新增“混合词表内外兴趣”用例，既检查\DesignCode{parseTags()}返回结果，又检查重试成功后的API与数据库字段。若只修改返回值而忘记保存过滤后的数组，集成断言仍会失败。
+
+\DesignCode{draw.test.mjs}覆盖权重选择、待决定复用、收藏容量、冷却与初始化。边界应区分当前无每日次数上限与五位收藏上限：不能用旧版本“每日次数耗尽”的假设编写当前验收标准。
+
+这些用例由本轮完整回归执行。真实匹配满意度、推荐对象是否合适及用户继续交流的比例没有在本轮采集，不由算法算例或全部测试通过替代。模型生成标签的多样性也不等于匹配效果已获实证。

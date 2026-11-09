@@ -1,0 +1,22 @@
+\clearpage
+\subsection{数据存储与匹配收藏}
+\label{sec:impl-06-storage}
+\par\medskip\noindent\textbf{关系表与账号状态。}
+\DesignCode{openDatabase()}创建SQLite连接，开启WAL和外键后装配表、索引及迁移。身份、真人纸条、会话和消息采用关系表；虚拟互动以账号为边界保存状态JSON；头像、立绘、背景和私有预览以BLOB保存。两类数据分工明确，浏览器不能直接替换数据库中的账号状态。
+
+\DesignCode{readState()}读取并校验持久化对象，\DesignCode{runAction()}仅接受显式白名单动作，先读取当前状态再执行规则并写回。参数化SQL与参与者校验解决不同问题：前者控制SQL结构，后者控制谁可以操作哪条记录，二者均需保留。
+
+\begin{table}[H]\centering\small
+\caption{需要保持一致的写入组}
+\begin{tabularx}{\linewidth}{@{}p{29mm}X@{}}\toprule
+操作 & 同一业务结果必须保持的关系 \\ \midrule
+注册 & 账号、初始资料及会话同时成功或撤回 \\
+抽取决定 & 结果状态、收藏变化及容量检查一致 \\
+接受纸条 & 纸条已接受、会话及两条初始消息一致 \\
+保存生成图 & 目标资源写入与任务已保存状态一致 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{事务边界与恢复。}
+需要串行检查容量或幂等状态时使用立即写事务，数据库唯一索引作为并发竞争的第二道约束。耗时模型调用不占用长期写事务；返回后再检查消息或媒体版本，防止旧结果写入已经变化的上下文。
+
+持久化测试使用临时数据库验证重开连接后数据仍在，损坏JSON应显式报错，而不是被当成全新用户静默覆盖。媒体分离迁移只执行一次，旧头像不因重启反复恢复。数据库备份应通过一致性备份方式生成，再检查完整性；报告不把简单复制活动WAL文件视为已验证恢复流程。

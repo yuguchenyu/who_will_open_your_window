@@ -1,0 +1,22 @@
+\clearpage
+\subsection{通信隐私与AI媒体用例}
+\label{sec:impl-16-chat-cases}
+\par\medskip\noindent\textbf{角色决策表与状态迁移。}
+真人交流以发送者、收件人和第三方组织测试；虚拟互动则按待回复、回复成功、失败重试与被屏蔽状态组织。两类通信必须分别验证，不能把演示人物的规则套到真实用户身上。
+
+\begin{table}[H]\centering\small
+\caption{交流与私有状态代表用例（FR-05至FR-07、FR-12至FR-14）}
+\begin{tabularx}{\linewidth}{@{}p{15mm}p{38mm}X@{}}\toprule
+编号 & 前置与操作 & 预期结果及检查点 \\ \midrule
+IT-09 & 收件人接受已收藏对象纸条；第三方也尝试 & 本人建立唯一会话和首轮消息；第三方不能处理 \\
+IT-10 & 双方发送消息；第三方访问同一会话 & 双方记录和时间可读；第三方越权被拒绝 \\
+IT-11 & 虚拟回复失败后重试；伪造内部补写动作 & 原用户消息不重复；外部不能调用内部完成路径 \\
+IT-12 & 记录心笺、变更授权、推进周期与重置 & 分数不隐含意愿，周期重新判断；私人备注不进入上游 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{状态不变与数据最小化。}
+\DesignCode{real-chat.test.mjs}验证纸条到会话的完整链路与第三方隔离；\DesignCode{core.test.mjs}、\DesignCode{actions.test.mjs}、\DesignCode{state.test.mjs}分别检查规则、动作白名单和持久化。错误输入除返回失败外，还应保持原状态和记录数不变。
+
+\DesignCode{server.test.mjs}截获实际发给模拟模型的消息，断言不含心笺备注和客户端伪造的历史。这样比仅看页面上没有显示私人字段更直接，因为页面隐藏不能证明服务端没有外发。
+
+重置用例只对虚拟互动与默认资料作判断，真人会话、收藏和媒体不会被该入口清空。用户关闭交流参考功能的在途请求属于另一项风险，不能由心笺隐私测试或普通顺序开关测试推定已全部解决。

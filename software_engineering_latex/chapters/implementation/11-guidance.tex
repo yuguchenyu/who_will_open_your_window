@@ -1,0 +1,23 @@
+\clearpage
+\section{AI辅助与媒体实现}
+\subsection{拾言建议、风格与情绪呈现}
+\label{sec:impl-11-guidance}
+\par\medskip\noindent\textbf{一个分析请求的三个输出。}
+\DesignCode{guidanceMessages()}从服务端对话记录构造素材，\DesignCode{parseGuidance()}校验三条意图解释、三条建议与情绪对象。建议以当前用户视角写出，严格区分是谁分享了经历；风格只影响表达方式，不改变对方意图和情绪的判断标准。
+
+\DesignCode{replyStyleOf()}限制自然日常、轻松幽默、温柔关心和直接简短四种风格。规则强调短句、承接具体上下文，不强行反问，不编造地点或用户经历。页面切换风格后重生成建议，保留自行输入的草稿；点击建议先填入编辑区，发送仍需用户确认。
+
+\begin{table}[H]\centering\small
+\caption{分析结果接纳与立绘选择规则}
+\begin{tabularx}{\linewidth}{@{}p{37mm}X@{}}\toprule
+判定条件 & 界面行为 \\ \midrule
+返回消息编号已过期 & 不把旧结果覆盖到最新消息 \\
+消息一致、风格已改变 & 不采用旧风格的回复建议 \\
+已知情绪且置信度至少70 & 继续检查对应情绪图片是否存在 \\
+难判断、低置信度或缺图 & 回退默认立绘；默认也缺失则问号人 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{异步竞争与可解释提示。}
+\DesignCode{generateGuidance()}在请求前记录消息编号和风格，结果返回时再核对当前上下文。若期间收到新消息或切换风格，完成后可以补发最新分析；旧结果不得闪回画面。情绪标签和置信度仅是模型参考值，不是心理事实或校准概率。
+
+当前页面按有效分析呈现情绪提示；置信度不足时回退立绘，不强行显示确定情绪。浏览器回归覆盖无关键词消息、连续消息竞争、风格快速切换与草稿保留。模拟模型证明绑定逻辑正确，但不用于计算真实情绪识别准确率。

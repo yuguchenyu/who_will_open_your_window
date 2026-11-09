@@ -1,0 +1,238 @@
+{
+  "date": "2026-11-09",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "node": "v24.13.0",
+  "git": "6d15c91fb812fd97455aae653eafb5f00441d092",
+  "test_files": 16,
+  "results": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=spec",
+        "tests\\actions.test.mjs",
+        "tests\\auth.test.mjs",
+        "tests\\core.test.mjs",
+        "tests\\db.test.mjs",
+        "tests\\draw.test.mjs",
+        "tests\\favorability.test.mjs",
+        "tests\\matching.test.mjs",
+        "tests\\media-separation.test.mjs",
+        "tests\\media.test.mjs",
+        "tests\\portrait-emotion.test.mjs",
+        "tests\\portrait-generation.test.mjs",
+        "tests\\qwen-portrait-generation.test.mjs",
+        "tests\\real-chat.test.mjs",
+        "tests\\reply-style.test.mjs",
+        "tests\\server.test.mjs",
+        "tests\\state.test.mjs"
+      ],
+      "exit": 0,
+      "wall_seconds": 2.665,
+      "log": "regression.txt"
+    },
+    {
+      "command": [
+        "node",
+        "tests/portraits-browser.mjs"
+      ],
+      "exit": 0,
+      "wall_seconds": 16.447,
+      "log": "portraits-browser.txt"
+    },
+    {
+      "command": [
+        "node",
+        "tests/reply-style-browser.mjs"
+      ],
+      "exit": 0,
+      "wall_seconds": 1.954,
+      "log": "reply-style-browser.txt"
+    },
+    {
+      "command": [
+        "node",
+        "tests/portrait-generation-browser.mjs"
+      ],
+      "exit": 0,
+      "wall_seconds": 2.165,
+      "log": "portrait-generation-browser.txt"
+    }
+  ],
+  "groups": {
+    "frontend": {
+      "files": 12,
+      "lines": 7679,
+      "nonblank": 7541
+    },
+    "backend": {
+      "files": 15,
+      "lines": 3204,
+      "nonblank": 2944
+    }
+  },
+  "sources": [
+    {
+      "file": "server.mjs",
+      "lines": 556,
+      "nonblank": 508,
+      "sha256": "83a87d74c688c2626f0c8fcc0eb0fdd864a452c6778f8b3959b849cdc0d81761"
+    },
+    {
+      "file": "lib/actions.mjs",
+      "lines": 110,
+      "nonblank": 99,
+      "sha256": "486b668298220f3da02104b232dd5a9d8073f5e148ac85b7cfbbd86c7c5a3d09"
+    },
+    {
+      "file": "lib/auth.mjs",
+      "lines": 322,
+      "nonblank": 296,
+      "sha256": "1429435efb6efe09af038e5b17d3edcaaf3e57e04389ae9b693757278157f05b"
+    },
+    {
+      "file": "lib/db.mjs",
+      "lines": 214,
+      "nonblank": 207,
+      "sha256": "6392cb4e7796839e1716bd73609f221c96755d64a0b198a3f453b55640613e41"
+    },
+    {
+      "file": "lib/draw.mjs",
+      "lines": 361,
+      "nonblank": 345,
+      "sha256": "73a785b533fe4b134309c6cc88f3e493a35a537d8820368c137a9eea55ed5ba4"
+    },
+    {
+      "file": "lib/errors.mjs",
+      "lines": 13,
+      "nonblank": 12,
+      "sha256": "21ce9a4e59e70dc0cdaf15473d1f94e4b4ce470f97b530f430be3a4b02bc6985"
+    },
+    {
+      "file": "lib/favorability.mjs",
+      "lines": 542,
+      "nonblank": 474,
+      "sha256": "c5ec1d86c544f471f73f82ab48ae670947948fc0a1f328815c4c44fea476956f"
+    },
+    {
+      "file": "lib/http.mjs",
+      "lines": 62,
+      "nonblank": 56,
+      "sha256": "dc0a035ed71b48b8cf0492fb038cf76a5463b9b261f7e072dfdc5d49aaedaa30"
+    },
+    {
+      "file": "lib/matching.mjs",
+      "lines": 210,
+      "nonblank": 200,
+      "sha256": "84680c394a201a2781b6ac16128ef7d04f2193c0bd8a486b600493d7355faef1"
+    },
+    {
+      "file": "lib/media.mjs",
+      "lines": 96,
+      "nonblank": 87,
+      "sha256": "3b8186031564bd96d7ff3bea2be0c2aa54a878822b4719c64f4002ee94c06492"
+    },
+    {
+      "file": "lib/portrait-generation.mjs",
+      "lines": 185,
+      "nonblank": 164,
+      "sha256": "d0bae97d6dc811f72d9023b6a7004cd2c730c6fce4b1e13491827d81b5b48b7c"
+    },
+    {
+      "file": "lib/portrait-png.mjs",
+      "lines": 140,
+      "nonblank": 122,
+      "sha256": "d33cda609e6e9d0945ac497e03e474e2071e978fe1c125fa8b86a3c53f30b615"
+    },
+    {
+      "file": "lib/real-chat.mjs",
+      "lines": 261,
+      "nonblank": 252,
+      "sha256": "9294bece0b025ed3b5e71c6c96587029db4d790fdb767a0e38d50c26c34f38dd"
+    },
+    {
+      "file": "lib/reply-style.mjs",
+      "lines": 39,
+      "nonblank": 36,
+      "sha256": "c5b9e6cd9090d7535666cecd7fe4513d32242edf7b094c98b3ca75d01723a283"
+    },
+    {
+      "file": "lib/state.mjs",
+      "lines": 93,
+      "nonblank": 86,
+      "sha256": "ef3ff8d54658c0d9bd26f9caa0c995790bf70f904ff4d0d383df1b5471c6a2fd"
+    },
+    {
+      "file": "public/api.mjs",
+      "lines": 90,
+      "nonblank": 84,
+      "sha256": "4d7512a74dd0aefe916673ed574e58254f89246f1e61a06d4902701460705ee8"
+    },
+    {
+      "file": "public/app.mjs",
+      "lines": 2164,
+      "nonblank": 2088,
+      "sha256": "7218410b19aadd4276dd2ea9ab9b18ad00654e5520c867f9c7ea4f22b4416ba4"
+    },
+    {
+      "file": "public/core.mjs",
+      "lines": 605,
+      "nonblank": 581,
+      "sha256": "42817bf13e21bf8ae4613a0821a3ded9e74e01190d6241204cae6f765508cfc0"
+    },
+    {
+      "file": "public/entrance.mjs",
+      "lines": 65,
+      "nonblank": 59,
+      "sha256": "e20a34d60eebb00ddf40a73c7bb7299adcb9baa1a5c73de4422fb7f8e8dd6f16"
+    },
+    {
+      "file": "public/login.mjs",
+      "lines": 80,
+      "nonblank": 72,
+      "sha256": "915a98e040eeaf9446bcfbe8fce91814476952da0f0ae0141e2fa020348cca8a"
+    },
+    {
+      "file": "public/portraits.mjs",
+      "lines": 40,
+      "nonblank": 37,
+      "sha256": "b2f017bb82f97a4ec340f2ccfeb9a7e85e055b1dfd617b8eccddc9b9bd7bc311"
+    },
+    {
+      "file": "public/reply-styles.mjs",
+      "lines": 17,
+      "nonblank": 13,
+      "sha256": "29a631a2878625e922325830e532fd367c9d7a16a8ee9e41ba75f1bf6e0e54db"
+    },
+    {
+      "file": "public/index.html",
+      "lines": 2,
+      "nonblank": 2,
+      "sha256": "53707ae509d289bea4f5461c118dd174e89b86f7d1d7296c5139e5f11c61c0d0"
+    },
+    {
+      "file": "public/login.html",
+      "lines": 2,
+      "nonblank": 2,
+      "sha256": "fcc3fd7eec11ae4c09caef3f76061071bc3e028b1ad4182841f4eba1c0611f38"
+    },
+    {
+      "file": "public/draw.css",
+      "lines": 657,
+      "nonblank": 655,
+      "sha256": "669fa16a1710f098c1dba9ec01314c30a5844ce7b454dd746f08c5eecf922fef"
+    },
+    {
+      "file": "public/style.css",
+      "lines": 2185,
+      "nonblank": 2185,
+      "sha256": "fa0aa19bac3c597a5d237625ed8245de2e57135046b92f0c38d399d5976a1206"
+    },
+    {
+      "file": "public/watercolor.css",
+      "lines": 1772,
+      "nonblank": 1763,
+      "sha256": "6e29ae38bb92f8190b5e234bc9248b2af68438cc2f5d8987966615d09ac26eb7"
+    }
+  ]
+}

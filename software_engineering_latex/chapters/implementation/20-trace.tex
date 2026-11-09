@@ -1,0 +1,26 @@
+\clearpage
+\section{需求追踪与交付检查}
+
+\label{sec:impl-20-trace}
+\par\medskip\noindent\textbf{实现与用例的双向索引。}
+表中FR编号沿用现有报告的15项功能需求；即使本次不编译第2章，也可通过下表理解验证范围。每组列出相关用例而非宣称用例已覆盖该需求的全部操作组合。
+
+\begin{table}[H]\centering\small
+\caption{需求、实现位置与本章验证索引}
+\begin{tabularx}{\linewidth}{@{}p{24mm}p{39mm}X@{}}\toprule
+需求范围 & 主要实现模块 & 验证索引 \\ \midrule
+FR-01 & auth、http、server & IT-01至IT-04 \\
+FR-02至04 & matching、draw & IT-05至IT-08 \\
+FR-05至07 & real-chat、core、actions & IT-09至IT-11 \\
+FR-08至09 & reply-style、portraits、app & IT-13、14；BT-01、02 \\
+FR-10至11 & media、portrait-generation、PNG & IT-15至IT-18；BT-03 \\
+FR-12至14 & core、actions、state & IT-12及资料保存断言 \\
+FR-15 & favorability、server & 现有规则与开关测试；在途撤回仍须补测 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{交付与可继续验证事项。}
+本次交付包括第4章入口、7个主体节及相关实现片段、个人元数据、编译后的报告和带日期的测试证据。其他成员的章节源码不改写；入口保留为注释，后续合并总报告时可恢复。正文独立编号为第4章，图表以4为前缀，不依赖未启用章节的交叉引用。
+
+后续优先补充真实模型协议和内容质量检查、交流参考开关在途撤回、长期负载与备份恢复演练，以及用户在真实设备上的操作反馈。性能验证需重新记录数据量、并发、预热、成功率和分位数口径；用户满意度需要真实参与者和一致问卷，不从自动化日志推测。
+
+本章完成课程要求的编码规范、版本管理、测试计划和代表用例说明，并通过可定位的源码与本轮执行记录形成“实现—检查—结果—限制”的证据链。最终提交前仍由本人核对署名、学号和课程要求，不将工具执行记录替代个人审阅。

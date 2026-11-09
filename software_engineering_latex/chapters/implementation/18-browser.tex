@@ -1,0 +1,22 @@
+\clearpage
+\section{浏览器回归与结果分析}
+\subsection{浏览器交互回归}
+\label{sec:impl-18-browser}
+\par\medskip\noindent\textbf{本轮实际执行的三个脚本。}
+浏览器测试启动独立服务和无头Chrome，使用隔离账号、测试图片及模拟模型。它们不读取日常账号，也不靠截图替代断言；原始结果单独保存，不将三个脚本累加到141个单元/接口测试项数中。
+
+\begin{table}[H]\centering\small
+\caption{本轮浏览器检查及观察结果}
+\begin{tabularx}{\linewidth}{@{}p{18mm}p{36mm}X@{}}\toprule
+编号 & 脚本 & 实际覆盖与结果 \\ \midrule
+BT-01 & \DesignCode{portraits-browser.mjs} & 上传、刷新、移除与默认回退；新消息情绪切换及旧结果隔离；通过 \\
+BT-02 & \DesignCode{reply-style-browser.mjs} & 切换风格、最新选择生效、草稿保留与刷新记忆；通过 \\
+BT-03 & \DesignCode{portrait-generation-browser.mjs} & 外发确认、后台等待动画、预览恢复及明确保存；通过 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{移动端、竞争与减少动画。}
+脚本按已有断言检查320、390及1440像素宽度下的相关页面或容器。风格快速切换时，通过可控的延迟让旧请求后返回，确保只显示最新选择。情绪测试在无需刷新情况下接收新消息，并观察旧情绪是否闪回。
+
+生图脚本还模拟HTTP环境缺少\DesignCode{crypto.randomUUID}的情况，验证替代编号生成、任务开始和等待界面；减少动态效果设置下不播放装饰动画，仍可通过文字理解进度。生成完成后预览可见，但未确认时情绪资源保持不变。
+
+本轮没有整套重跑其余浏览器脚本，也未开展读屏器实测和真实手机触摸测试。因此“相关宽度断言通过”不写成“全站无障碍认证”或“所有设备兼容”。具体视口、步骤和失败位置以本轮日志及脚本为准。

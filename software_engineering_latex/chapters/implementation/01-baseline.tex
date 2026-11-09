@@ -1,0 +1,23 @@
+\section{实现环境与编码规范}
+\subsection{技术环境与验证基线}
+\label{sec:impl-01-baseline}
+本章对应课程“编码与测试”要求，围绕编码规范、版本管理、关键模块实现、测试计划与测试用例组织材料。编写人为王羽喆（U202414672，CS2405）。本次仅启用第4章，不重复展开其他成员负责的需求、设计、创新与用户反馈章节，也不据Git作者名称推定个人贡献比例。
+
+\par\medskip\noindent\textbf{技术环境与执行口径。}
+项目使用原生HTML、CSS及JavaScript构建浏览器界面，服务端使用Node.js的HTTP、Crypto、SQLite、文件和压缩模块。\DesignCode{package.json}没有声明第三方应用运行依赖；浏览器检查另需Playwright工具与Chrome，不能把零运行依赖等同于零测试工具依赖。
+
+\begin{table}[H]\centering\small
+\caption{本轮实现与测试基线}\label{tab:impl-baseline}
+\begin{tabularx}{\linewidth}{@{}p{30mm}X@{}}\toprule
+项目 & 本轮记录 \\ \midrule
+源码基线 & 提交\texttt{6d15c91}；包含本地、服务器及GitHub合并结果 \\
+执行日期与环境 & 2026年11月9日；Windows；Node.js v24.13.0 \\
+业务回归 & 16个测试文件，141项通过、0失败、0跳过 \\
+浏览器检查 & 情绪立绘、回复风格、后台生图三个独立脚本通过 \\
+隔离方法 & 临时服务、测试账号、内存或临时SQLite、模拟上游 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{证据范围与复现入口。}
+本轮不读取实际服务的密钥、不向真实模型发起付费请求、不修改日常数据库。自动化回归验证程序规则和错误处理，模拟上游只能证明协议与状态流，不能证明真实模型的文字质量、情绪准确率或人物一致性。
+
+所有新记录位于\DesignCode{assets/report/implementation-20261109/}。其中\DesignCode{evidence.json}记录环境、源码摘要和命令退出码，\DesignCode{regression.txt}保存完整回归输出，三个浏览器日志分别保存执行结果。历史120项记录仍保留原日期，不与本轮141项混写。

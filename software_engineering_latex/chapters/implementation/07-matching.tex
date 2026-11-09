@@ -1,0 +1,22 @@
+\clearpage
+\noindent\textbf{介绍解析与双向匹配实现}\par\smallskip
+\label{sec:impl-07-matching}
+\par\medskip\noindent\textbf{资料保存与模型结果校验。}
+用户提交自我介绍和期望对象介绍后，服务端先保存原文，清空旧标签并置为待分析，再构造最小必要的模型素材。标签来自固定词表，两组各有数量上限、类型和重复约束。模型失败时介绍仍可编辑，用户通过重试入口继续提取，而不是被迫重新注册。
+
+本轮合并的修复允许模型夹带词表外兴趣：\DesignCode{parseTags()}先检查数组、类型、数量与重复，再过滤未知标签。只要两组仍有有效标签就继续；任一组过滤后为空则拒绝。这并不把“喜欢编程”等未知文本自动加入产品词表。
+
+\begin{table}[H]\centering\small
+\caption{标签解析的输入分类}
+\begin{tabularx}{\linewidth}{@{}p{45mm}X@{}}\toprule
+输入特征 & 实际处理与测试断言 \\ \midrule
+有效标签混合词表外兴趣 & 保留支持标签，返回的数组不含未知值 \\
+某一组全为未知兴趣 & 返回FORMAT，不将资料标为就绪 \\
+数组含非字符串或重复项 & 校验失败，不静默接受错误结构 \\
+介绍在请求期间被改写 & 旧文字快照不再写回当前资料 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{评分与候选过滤。}
+\DesignCode{matchScore()}分别计算本人期望与对方本人标签、对方期望与本人标签的交集比例；任一方向为零则总分为零，其余取平均百分数。候选还要排除本人、无效资料、已收藏、冷却或已处于联系流程的对象，并按接收开关过滤。
+
+测试将双向匹配与解析分开，避免“标签能生成”掩盖单向推荐错误。新增回归同时验证恢复后的接口响应与数据库\DesignCode{self_tags}字段，确保过滤规则落实到保存结果，不只改变了页面显示。测试文件为\DesignCode{tests/matching.test.mjs}。

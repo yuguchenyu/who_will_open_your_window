@@ -1,0 +1,24 @@
+\clearpage
+\section{版本管理与协同开发}
+
+\label{sec:impl-03-version-control}
+\par\medskip\noindent\textbf{分支、提交与同步。}
+项目使用Git保存实现与报告资料；代码托管位置为GitHub。课程将码云列为版本管理示例，本项目采用同类托管平台，不使用虚构的Gitee签入截图。当前本地\DesignCode{origin}指向Tailscale服务器仓库，服务器的\DesignCode{origin}再指向GitHub，需分别检查两层远端状态。
+
+2026年11月9日同步时，本地有报告与支持文件提交，服务器另有匹配标签修复，GitHub还有三次报告更新。先保存服务器修复，再合并本地与服务器，最后纳入GitHub更新；完成后本地、服务器仓库与GitHub均指向\texttt{6d15c91}，工作区干净。
+
+\begin{table}[H]\centering\small
+\caption{本轮可核对的版本记录}
+\begin{tabularx}{\linewidth}{@{}p{23mm}X@{}}\toprule
+提交 & 内容及核对用途 \\ \midrule
+\texttt{9054a1a} & 加入既有报告、测试支持资料，保留本地成果 \\
+\texttt{7d54209} & 修复标签解析，模型夹带词表外兴趣时保留有效标签 \\
+\texttt{2b71417} & 合并服务器修复与本地提交 \\
+\texttt{d401ade} & GitHub侧设计报告与20页正文更新 \\
+\texttt{6d15c91} & 合并GitHub新增报告，形成当前验证基线 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{保留修改与回退策略。}
+同步前先执行状态检查和\DesignCode{fetch}，比较提交图；有未提交内容时先明确保存范围。能够快进则快进，发生分叉则生成合并提交，不以强制重置覆盖另一端成果。本轮合并未发生冲突，相关命令结果与Git历史可独立核对。
+
+后续回退应针对具体提交使用可审阅的反向提交；数据库变更另做备份与迁移验证。Git版本一致不等于正在运行的进程已重启，也不等于测试已执行，运行状态与验证输出须分别记录。提交记录见本轮证据目录的\DesignCode{git-history.txt}。

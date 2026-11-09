@@ -1,0 +1,23 @@
+\clearpage
+\subsection{源码组织与编码规范}
+\label{sec:impl-02-conventions}
+\par\medskip\noindent\textbf{职责、命名与数据流。}
+源码使用ES Modules，通过显式\DesignCode{import/export}表达依赖。\DesignCode{server.mjs}接收请求并调用领域函数，\DesignCode{lib/}组织认证、匹配、通信、媒体和模型任务，\DesignCode{public/}负责页面呈现与交互。函数按“动作＋对象”命名，跨层只传必要数据，避免浏览器直接拼接SQL或操作账号表。
+
+本轮统计前端12个文件7679物理行，后端15个文件3204物理行，合计10883行；非空行分别为7541、2944，合计10485行。范围为\DesignCode{public/}的JS、HTML、CSS及\DesignCode{server.mjs/lib/}，不含测试、文档、图片、依赖和运行数据。注释计入物理行，行数不作为功能规模或个人工时证明。
+
+\begin{table}[H]\centering\small
+\caption{编码规则与源码检查点}
+\begin{tabularx}{\linewidth}{@{}p{28mm}X@{}}\toprule
+规则 & 本项目的实施方式 \\ \midrule
+输入先校验 & 路由解析请求后检查类型、长度、枚举、账号与状态 \\
+避免SQL注入 & SQL使用预编译语句及参数绑定，不拼接用户输入 \\
+边界清晰 & 密钥仅在服务端；页面状态是服务端快照而非数据真相 \\
+可读错误 & 领域层抛\DesignCode{ApiError}，接口统一输出错误码与文案 \\
+资源可释放 & 测试结束关闭服务、连接和数据库，后台任务释放并发名额 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{可维护性与已知限制。}
+重要函数旁的注释解释事务边界、回退原因和竞争条件，不逐句翻译实现。重复的风格规则、情绪枚举和图片大小限制在对应模块集中维护；修改接口后同时检查调用者、错误分支与测试夹具。
+
+仓库没有将某个格式化工具、静态类型检查器或覆盖率门槛设为自动化合并门禁。因此本章描述的是源码已有约定和本轮核查，不能宣称已运行不存在的ESLint、TypeScript或持续集成流水线。后续可在不改变模块接口的前提下补充这些工具。

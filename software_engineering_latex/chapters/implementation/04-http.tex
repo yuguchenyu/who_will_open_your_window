@@ -1,0 +1,24 @@
+\clearpage
+\section{核心业务功能实现}
+\subsection{HTTP入口与账号认证}
+\label{sec:impl-04-http}
+\par\medskip\noindent\textbf{从网络请求到领域函数。}
+\DesignCode{readConfig()}读取服务端环境，\DesignCode{createServer()}装配数据库和路由。静态资源仅按限定路径提供；业务接口解析会话后再调用模块函数。Host、Origin及真实TCP对端IP的检查分别用于访问策略和跨站请求约束，不把可伪造的转发头当作访问者身份。
+
+普通JSON请求体最多64000字节，媒体上传路由放宽为4200000字节，以容纳Base64包装。图片解码后的存储大小另由媒体模块限制，不能把请求体上限当作图片上限。请求方法、内容类型、格式和身份不符时提前拒绝，避免进入模型或写入流程。
+
+\begin{table}[H]\centering\small
+\caption{HTTP边界的可观察行为}
+\begin{tabularx}{\linewidth}{@{}p{30mm}p{22mm}X@{}}\toprule
+输入或状态 & 处理 & 检查重点 \\ \midrule
+无有效会话 & 401 & 不返回账号私有状态 \\
+访问其他会话 & 拒绝 & 不向非参与者暴露消息 \\
+过大或非法JSON & 拒绝 & 不执行后续领域写入 \\
+来源不被允许 & 拒绝 & Host/Origin约束仍生效 \\
+模型失败 & 脱敏错误 & 不回传密钥与上游诊断原文 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{错误结构与客户端恢复。}
+领域错误使用\DesignCode{ApiError}携带HTTP状态和机器可读代码。浏览器API封装统一读取\DesignCode{error/code}；401触发登录恢复流程，其他错误由当前页面提示。凭据、数据库内部异常和上游原文不直接拼进提示，未知内部异常只给出可理解的重试信息。
+
+HTTP集成测试启动独立端口并注入模拟请求函数，验证静态文件、方法、鉴权、来源限制、请求大小与错误映射。测试不需要占用日常服务端口；服务关闭后释放连接，避免一个失败用例影响后续测试。

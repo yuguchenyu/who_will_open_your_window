@@ -1,0 +1,20 @@
+\clearpage
+\noindent\textbf{账号认证与单设备会话实现}\par\smallskip
+\label{sec:impl-05-auth}
+\par\medskip\noindent\textbf{注册、验证与会话替换。}
+注册过程校验用户名及密码，通过独立随机盐与scrypt计算密码摘要，再在事务中创建账号、初始状态和会话。用户名唯一约束处理大小写差异；重复注册返回可理解的提示，失败不留下半个账号。密码及盐之外不保存可直接还原的明文凭据。
+
+登录比较摘要时使用长度一致后的恒定时间比较。会话令牌原值只交给浏览器，数据库保存其SHA-256摘要。新设备登录使旧会话失效；旧设备下次请求能收到“已被替换”的原因，而不是模糊的网络异常。会话为固定到期策略，不因普通访问不断续期。
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}
+\node[reportbox,text width=110mm] (a) at (0,0) {校验账号输入与失败计数};
+\node[reportbox,text width=110mm] (b) at (0,-1.2) {计算或比较密码摘要；验证通过后替换旧会话};
+\node[reportbox,text width=110mm] (c) at (0,-2.4) {写入令牌摘要；返回HttpOnly会话Cookie};
+\draw[reportarrow] (a)--(b);\draw[reportarrow] (b)--(c);
+\end{tikzpicture}\caption{认证实现的主要调用顺序}\end{figure}
+
+\par\medskip\noindent\textbf{安全约束与异常路径。}
+登录失败同时按账号与IP组合、按IP总量计数，避免只更换用户名就绕过限流。Cookie使用HttpOnly和SameSite策略；当前HTTP演示不具备HTTPS传输保密能力，不能据Cookie属性宣称密码在网络中已加密。
+
+测试覆盖重复账号、错误密码、随机盐、令牌摘要、到期、注销、第二设备替换及两级失败限制。验证既检查返回结果，也检查数据库中密码并非明文、失效令牌不能继续读取状态。真实身份核验、多因素认证和大规模账号风控不属于本轮已实现范围。

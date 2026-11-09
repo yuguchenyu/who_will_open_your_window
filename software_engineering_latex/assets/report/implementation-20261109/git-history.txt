@@ -1,0 +1,7 @@
+6d15c91 | 2026-11-09T11:04:24+08:00 | Merge remote-tracking branch 'origin/main' into main
+2b71417 | 2026-11-09T11:03:42+08:00 | Merge remote-tracking branch 'origin/main'
+7d54209 | 2026-11-09T11:03:24+08:00 | fix: preserve valid matching tags from mixed model output
+9054a1a | 2026-11-09T11:01:02+08:00 | feat: Add comprehensive tests and supporting files for core functionality
+d401ade | 2026-11-06T22:33:48+08:00 | docs: refine design report and publish 20-page body
+5ea34ee | 2026-11-04T20:02:12+08:00 | docs: update software engineering report
+c8af867 | 2026-11-03T17:06:50+08:00 | docs: add software engineering LaTeX report

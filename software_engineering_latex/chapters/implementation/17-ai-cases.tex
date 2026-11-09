@@ -1,0 +1,22 @@
+\clearpage
+\noindent\textbf{AI适配、情绪与图片测试用例}\par\smallskip
+\label{sec:impl-17-ai-cases}
+\par\medskip\noindent\textbf{模拟上游的契约检查。}
+AI功能的稳定部分是请求结构、鉴权位置、校验与回退。测试向\DesignCode{fetchImpl}注入成功、畸形JSON、错误状态、延迟及图片字节，既核对程序发出了什么，也核对失败后是否仍保留旧数据。
+
+\begin{table}[H]\centering\small
+\caption{AI和媒体代表用例（FR-08至FR-11）}
+\begin{tabularx}{\linewidth}{@{}p{15mm}p{38mm}X@{}}\toprule
+编号 & 输入或竞争条件 & 预期检查点 \\ \midrule
+IT-13 & 非法风格、错误建议数量或解释权重 & 请求白名单及输出结构校验；不把坏结果展示成可选句 \\
+IT-14 & 情绪未知、低置信度、缺图、旧消息返回 & 使用默认图；过期分析不覆盖新消息 \\
+IT-15 & 图片扩展名与内容不符、超大或不透明PNG & 内容签名、大小和真实Alpha检查，不覆盖旧图 \\
+IT-16 & 无外发同意或无本人默认立绘 & 不向上游发起生成请求 \\
+IT-17 & 下载地址为任意域名、内部地址或重定向 & 拒绝获取，不向图片下载请求转发密钥 \\
+IT-18 & 预览待确认时默认图或目标槽位被替换 & 保存拒绝过期结果；跨账号预览不可见 \\ \bottomrule
+\end{tabularx}\end{table}
+
+\par\medskip\noindent\textbf{Qwen分支与限制。}
+\DesignCode{qwen-portrait-generation.test.mjs}核对默认模型、兼容与原生请求、结果URL下载、下载失败、大小边界和透明处理。通用生图测试继续覆盖确认保存、请求幂等、超时和并发名额，媒体分离测试验证头像与立绘互不影响。
+
+本轮未调用真实上游，也没有计算情绪准确率或生成图可用率。接口契约通过不表示真实服务一定接受所有参数；画风、人物身份及半身/全身构图需要人工预览和另行记录。模拟返回完全透明或不透明图片的测试只能验证程序拒绝规则。
