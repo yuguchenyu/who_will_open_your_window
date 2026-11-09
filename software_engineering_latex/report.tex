@@ -1,0 +1,41 @@
+% !TeX program = xelatex
+% !TeX encoding = UTF-8
+\documentclass[UTF8,fontset=none,zihao=-4,openany]{ctexrep}
+\usepackage{reportstyle}
+\input{metadata}
+\begin{document}
+\hypersetup{pdftitle={谁能打开你的窗：软件工程项目报告},pdfsubject={低压力社交与AI辅助交流系统},pageanchor=false}
+\input{chapters/cover}
+\clearpage
+\hypersetup{pageanchor=true}
+\pagenumbering{Roman}
+\pagestyle{reportbody}
+\input{chapters/00-task}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+% \input{chapters/01-problem}
+% \input{chapters/02-requirements}
+\setcounter{chapter}{2}
+\input{chapters/03-design}
+% \input{chapters/04-implementation}
+% \input{chapters/05-summary}
+% \input{chapters/06-reflection}
+\clearpage
+\newcount\ReportBodyPages
+\ReportBodyPages=\numexpr\value{page}-1\relax
+\typeout{REPORT-BODY-PAGES=\the\ReportBodyPages}
+\ifnum\ReportBodyPages=20\else
+  \PackageError{report}{The design body must be exactly 20 pages}{Adjust the design content without changing the base typography.}
+\fi
+\newcount\ReportAppendixStart
+\ReportAppendixStart=\value{page}
+\input{chapters/appendix}
+\clearpage
+\newcount\ReportAppendixPages
+\ReportAppendixPages=\numexpr\value{page}-\ReportAppendixStart\relax
+\typeout{REPORT-APPENDIX-PAGES=\the\ReportAppendixPages}
+\ifnum\ReportAppendixPages>6
+  \PackageError{report}{The appendix must not exceed 6 pages}{Shorten reference material instead of shrinking the text.}
+\fi
+\end{document}

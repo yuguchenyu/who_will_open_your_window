@@ -1,0 +1,45 @@
+% Page 9: DDL constraints, indexes and access paths.
+\subsection{数据库约束与数据访问设计}
+数据访问服务于持续使用：查阅已有记录、保存操作结果，并在关键步骤中整体保存关联数据。
+系统按账号、会话和任务组织查询，通过参数化语句传入用户内容。
+
+\begin{table}[H]
+\centering\small\linespread{1.15}\selectfont
+\caption{主要访问场景、设计措施与作用}\label{tab:design-index-summary}
+\begin{tabularx}{\linewidth}{@{}p{.31\linewidth}X@{}}
+\toprule 访问场景 & 设计措施与业务作用 \\ \midrule
+继续登录 & 每账号至多一个活跃登录，明确当前设备所使用的身份状态 \\
+继续决定相遇卡 & 每账号保留一个待决定结果，重复进入时接着收藏或跳过 \\
+等待生成与确认 & 生成中与待确认任务合计最多一个，集中处理当前选择 \\
+发出纸条邀请 & 同方向仅保留一张待处理纸条；业务另检查反向待处理冲突 \\
+查阅登录与生成 & 按账号定位登录与最近任务，继续查看进度、结果和额度 \\
+查看收发纸条 & 按本人收发方向查阅近期记录，为邀请与回应提供入口 \\
+继续聊天 & 按会话查阅最近消息，保持交流次序，减少重复加载 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+数据库通过外键明确归属，通过唯一约束保持记录唯一，业务检查根据当前条件决定能否操作。
+例如收藏最多5个、真人纸条每天2次、生成在滚动24小时内最多12次，
+这些额度在处理操作时检查；读取会话还须确认参与者。
+记录约束与业务规则配合，既保证记录有明确关系，也判断用户当前能否操作。
+
+\begin{table}[H]
+\centering\small\linespread{1.15}\selectfont
+\caption{代表操作的保存流程与处理结果}\label{tab:design-access-path}
+\begin{tabularx}{\linewidth}{@{}p{.20\linewidth}X@{}}
+\toprule 业务操作 & 核心步骤与处理结果 \\ \midrule
+进入本人页面 & 识别登录账号，组合可展示的资料、互动与媒体摘要，继续已有使用状态 \\
+抽取与决定 & 核对待决定卡片、候选和容量，整体记录历史、收藏或冷却；重复决定返回已有结果 \\
+接受真人纸条 & 检查处理资格，整体保存接受状态、会话与开场消息，进入完整的聊天上下文 \\
+确认生成预览 & 检查本人任务及素材变化，一致时整体保存立绘与完成结果并清预览，否则提示重新处理 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+关联保存围绕同一业务步骤组织，把需要同步的结果集中处理。
+耗时任务先形成候选结果，再由用户确认进入保存步骤，使等待、选择和更新清楚衔接。
+主要操作的保存与衔接方式见第\ref{sec:design-consistency}节。
+访问约束的查阅摘要见附录表\ref{tab:compact-index}，数据与额度说明见附录\ref{chap:appendix-design-compact}。
+
+\clearpage

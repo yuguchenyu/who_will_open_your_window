@@ -1,0 +1,37 @@
+\clearpage
+\section{生成图检查与确认保存方案}
+\label{sec:design-png}
+生成图检查与确认保存负责把候选结果转为可使用的个人形象。
+流程由图片检查、展示准备、预览选择和正式保存组成，既关注图片能否正常展示，也保留用户选择结果的步骤。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportbox,text width=48mm] (a) at (-3.4,0) {基础检查\\图片完整性与大小};
+\node[reportbox,text width=48mm] (b) at (3.4,0) {准备展示内容\\整理可展示的图片格式};
+\node[reportbox,text width=48mm,below=10mm of b] (c) {检查展示内容\\可见形象与透明区域};
+\node[reportbox,text width=48mm,below=10mm of a] (d) {调整图片体积\\满足保存要求};
+\node[reportentity,text width=107mm,below=10mm of d.south,xshift=34mm] (e)
+ {本人查看预览，确认后保存为对应的情绪立绘};
+\draw[reportarrow] (a.east) -- (b.west);
+\draw[reportarrow] (b.south) -- (c.north);
+\draw[reportarrow] (c.west) -- (d.east);
+\draw[reportarrow] (d.south) -- (d.south |- e.north);
+\end{tikzpicture}
+\caption{生成图检查、预览与确认保存流程}\label{fig:design-png-flow}
+\end{figure}
+
+基础检查确认图片能够读取且大小适合处理，展示检查关注可见内容和透明区域。
+这两步为后续预览准备完整、可展示的图片。未通过检查时结束本次任务，并提示重新生成。
+
+体积较大的图片经过调整后再提供预览，使预览内容与将要保存的结果一致。
+用户可以在这一阶段查看表情、人物轮廓和背景效果，并判断它是否适合当前的个人形象。
+图片处理与用户选择前后衔接，共同形成从生成结果到正式素材的筛选过程。
+
+用户确认时，系统检查任务归属及当前素材是否适合采用本次结果。
+条件通过后，将情绪图、任务完成状态和预览处理结果集中保存，界面随之展示新的个人形象。
+若当前素材已经不适用，则保留预览并提示重新生成，方便用户从新的形象基础继续调整。
+
+例如，用户查看开心立绘并确认采用后，该图片成为对应情绪的展示素材，生成任务也进入已保存状态。
+流程以检查保障可用性，以预览承接选择，以集中保存完成更新，形成清晰的操作闭环。
+

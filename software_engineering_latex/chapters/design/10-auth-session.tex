@@ -1,0 +1,43 @@
+\clearpage
+% Authentication fragment of chapter 3; starts on body page 10.
+% chapters/03-design.tex owns the chapter heading and fragment order.
+% External appendix labels: chap:appendix-design-compact, tab:compact-api/data/index.
+
+\section{身份认证和会话生命周期}
+\label{sec:design-auth}
+身份认证使资料、收藏和交流操作归于本人。登录名识别账号，展示名称用于交流，调整对外称呼不改变登录身份。
+注册与登录先检查输入，登录还需验证凭据；通过后进入个人空间，失败则留在登录页提示原因。
+
+\subsection{注册、替换与失效路径}
+注册将账号、初始互动空间、初始收藏和首次登录一并建立，避免出现账号已有但个人空间尚未准备好的状态。
+匹配介绍随后保存并提取标签，为相遇发现准备资料。
+登录采用单活跃会话：同一账号在另一设备登录后，以新会话替换旧会话。
+每次会话自创建起固定有效30天，日常使用不自动延长，到期后需要重新登录。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportbox,text width=40mm,minimum height=14mm] (none) at (-3.6,0) {未登录\\先确认账号身份};
+\node[reportbox,text width=40mm,minimum height=14mm] (live) at (3.6,0) {有效会话\\绑定唯一账号};
+\node[reportentity,text width=40mm,minimum height=14mm,below=14mm of live] (replace) {旧设备失效\\提示其他设备已登录};
+\node[reportentity,text width=40mm,minimum height=14mm,below=14mm of none] (expire) {到期或主动退出\\结束当前登录};
+\draw[reportarrow] (none.east) -- node[reportlabel,above]{注册/登录} (live.west);
+\draw[reportarrow] (live.south) -- node[reportlabel,right]{另一设备登录} (replace.north);
+\coordinate[below=7mm of live.south] (expireturn);
+\draw[reportarrow] (live.south) -- (expireturn)
+ -- node[reportlabel,above]{到期/退出} (expireturn -| expire.north) -- (expire.north);
+\draw[reportarrow] (expire.north) -- (none.south);
+\draw[reportarrow] (replace.east) -- (6.4,0 |- replace.east) -- (6.4,1.2) -- (3.6,1.2) -- (live.north);
+\node[reportlabel,above] at (3.6,1.2) {重新登录开始新会话};
+\end{tikzpicture}
+\caption{账号会话状态与客户端可见的失效路径}\label{fig:design-session}
+\end{figure}
+
+例如用户从电脑转到手机登录，电脑在下一次请求时得知会话已被替换。
+系统区分设备替换、自然到期和主动退出，说明重新登录的原因；主动退出只结束当前会话。
+
+\subsection{失败限制与输入恢复}
+连续登录失败会触发暂时限制，既约束同一来源对同一账号的反复尝试，也限制换账号继续尝试的行为。
+用户核对凭据或等待限制结束后重试。会话失效返回登录页前，浏览器暂存尚未发送的草稿，
+重新登录后恢复编辑，减少输入损失。
+

@@ -1,0 +1,58 @@
+% Page 2: module responsibilities and collaboration.
+\subsection{模块职责与协作组织}
+系统围绕账号、相遇、交流和形象管理划分模块，由服务端统一组织请求与业务处理。
+各模块负责相应的数据和操作，前端通过接口获取结果并更新页面。
+表\ref{tab:design-module-summary}将模块作用与协作对象对应起来，便于理解一次操作如何完成。
+
+\begin{table}[H]
+\centering\small\linespread{1.15}\selectfont
+\caption{模块职责与业务协作}\label{tab:design-module-summary}
+\begin{tabularx}{\linewidth}{@{}p{.32\linewidth}X@{}}
+\toprule 模块组 & 核心操作与协作对象 \\ \midrule
+请求、账号与保存 & 识别用户并保存结果，为业务模块提供共同入口与数据支持 \\
+虚拟互动与规则 & 结合人物资料管理对话、待回复和回望，更新本人互动记录 \\
+相遇与收藏 & 根据介绍寻找候选，处理收藏或跳过，为纸条联系提供对象 \\
+真人交流与参考 & 处理纸条、回信和聊天，依据交流记录提供方向性参考 \\
+形象管理与生成 & 管理个人素材与生成预览，供页面展示并由用户确认保存 \\
+页面与同步 & 展示结果、保留草稿，协调相遇、交流和形象页面的刷新 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportbox,text width=115mm] (entry) at (0,0)
+ {服务端统一入口\\接收操作与组织业务};
+\node[reportbox,text width=34mm,below=8mm of entry.south,xshift=-44mm] (act)
+ {虚拟互动\\动作处理与状态管理};
+\node[reportbox,text width=34mm,below=8mm of entry.south] (draw)
+ {相遇与收藏\\匹配、抽取与收藏};
+\node[reportbox,text width=34mm,below=8mm of entry.south,xshift=44mm] (real)
+ {真人交流\\纸条、聊天与参考分};
+\node[reportentity,text width=48mm,font=\small\linespread{1.05}\selectfont,below=12mm of act.south,xshift=10mm] (core)
+ {共享人物与互动规则\\人物资料与行为条件};
+\node[reportentity,text width=48mm,font=\small\linespread{1.05}\selectfont,below=12mm of real.south,xshift=-10mm] (media)
+ {形象管理与立绘生成\\媒体存取、图片生成与处理};
+\draw[reportarrow] (entry.south -| act.north) -- (act.north);
+\draw[reportarrow] (entry.south) -- (draw.north);
+\draw[reportarrow] (entry.south -| real.north) -- (real.north);
+\draw[reportarrow] (act.south) -- (act.south |- core.north);
+\coordinate[below=6mm of draw.south] (sharedturn);
+\draw[reportarrow] (draw.south) -- (sharedturn) -| (core.north);
+\draw[reportarrow] (real.south) -- (real.south |- media.north);
+\draw[reportarrow] (entry.east) -- (6.8,0) -- (6.8,0 |- media.east) -- (media.east);
+\end{tikzpicture}
+\caption{主要模块的组织与协作关系}\label{fig:design-modules}
+\end{figure}
+
+图\ref{fig:design-modules}按功能展示主要模块的协作方式。相遇模块负责匹配、抽取与收藏，
+为用户建立联系提供起点；真人交流模块负责纸条、会话和消息，并提供交流参考。
+虚拟互动模块管理人物互动和状态，共享规则模块提供人物资料与互动规则。
+形象管理模块统一处理媒体资源和立绘生成，为个人展示与聊天界面提供支持。
+
+例如收藏卡片时，页面提交选择，相遇模块检查卡片与容量，保存模块记录决定，
+页面展示收藏结果。用户从收藏对象发出纸条，真人交流模块接续处理回信与聊天。
+各模块按操作结果刷新对应页面，使发现、联系和持续交流顺序衔接。
+
+\clearpage

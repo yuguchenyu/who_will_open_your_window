@@ -1,0 +1,50 @@
+% Page 6: real communication and directional cache ER.
+\subsection{真人通信与参考分的数据关系}
+真人通信按“纸条邀请、接受回信、建立会话、持续消息”组织记录。
+纸条保存邀请与决定，会话关联交流双方，消息按发送顺序持续保存，三者共同衔接联系过程。
+图\ref{fig:design-er-real}展示四类记录及用户关联；真人消息来自参与者，交流参考是辅助理解的结果。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\node[reportentity,text width=60mm,font=\small\linespread{1.05}\selectfont] (n) at (2.6,0)
+ {\DesignCode{real_notes}\\纸条邀请与处理结果\\分别关联发送者和接收者};
+\node[reportentity,text width=60mm,font=\small\linespread{1.05}\selectfont,below=10mm of n] (c)
+ {\DesignCode{real_conversations}\\分别关联双方参与者\\关联开场纸条；同一双方共用};
+\node[reportentity,text width=60mm,font=\small\linespread{1.05}\selectfont,below=10mm of c] (m)
+ {\DesignCode{real_messages}\\持续追加的交流内容\\关联所属会话与发送者};
+\node[reportentity,text width=60mm,font=\small\linespread{1.05}\selectfont,below=10mm of m] (f)
+ {\DesignCode{conversation_favorability}\\按会话与目标参与者区分\\分别关联会话和用户};
+\node[reportentity,text width=27mm,font=\small\linespread{1.05}\selectfont] (u) at (-5.4,0 |- c.center)
+ {\DesignCode{users}\\账号};
+\draw (u.east) -- (-3.4,0 |- u.east);
+\draw (-3.4,0 |- n.west) -- (-3.4,0 |- f.west);
+\draw (-3.4,0 |- n.west) -- node[reportlabel,above,align=center]{发送/接收\\各1:0..N} (n.west);
+\draw (-3.4,0 |- c.west) -- node[reportlabel,above,align=center]{参与 A/B\\各1:0..N} (c.west);
+\draw (-3.4,0 |- m.west) -- node[reportlabel,above,align=center]{发件人\\1:0..N} (m.west);
+\draw (-3.4,0 |- f.west) -- node[reportlabel,above,align=center]{分析目标\\1:0..N} (f.west);
+\draw (n.south) -- node[reportlabel,right]{1:0..1} (c.north);
+\draw (c.south) -- node[reportlabel,right]{1:0..N} (m.north);
+\draw (c.east) -- (6.4,0 |- c.east) -- (6.4,0 |- f.east) -- (f.east);
+\node[reportlabel,align=left,text width=27mm,below=18mm of u.south] (relationnote)
+ {右侧实线：会话至参考结果为1:0..N；业务限定双方参与者方向。};
+\draw[reportarrow,dashed] (f.east) -- (7,0 |- f.east) -- (7,0 |- m.east) -- (m.east);
+\node[reportlabel,below=5mm of f.south] {虚线：参考结果依消息进度更新的逻辑关系};
+\end{tikzpicture}
+\caption{ER 视图三：纸条、会话、消息与方向性参考的关系}\label{fig:design-er-real}
+\end{figure}
+
+发送者投递纸条后，由接收者决定是否开始交流。拒绝时记录决定并结束本次邀请；
+接受并回信时，纸条正文与回信成为两条开场消息。
+一张纸条至多建立一个会话，同一对用户共用一个会话，从各入口进入都能接续同一段聊天。
+接受结果、会话和开场消息整体保存，让进入聊天时能够接续完整的来意与回应。
+
+会话关联双方，消息另关联发送者，业务据此检查读写资格。
+甲发送的消息保留在甲乙的会话中，乙再次进入可接着阅读，双方按参与者身份访问交流记录。
+
+交流参考按方向记录，分别呈现甲看乙与乙看甲的交流情况。
+已有结果按消息进度复用，新消息到来后按需更新对应方向的分析。
+会话与参考通过外键形成一对多关系，分析目标取自双方参与者，
+消息进度通过图中虚线所示的逻辑关系驱动更新。
+
+\clearpage
