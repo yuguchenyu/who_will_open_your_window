@@ -1,0 +1,68 @@
+% 低保真线框图；只表达区域位置和操作方式。
+\begin{tikzpicture}[
+  x=1mm,y=1mm,line width=.4pt,draw=black!65,
+  font=\fontsize{9}{11}\selectfont,
+  every node/.style={align=center,inner sep=.5mm,text=black},
+  labeltext/.style={font=\fontsize{8}{10}\selectfont,text=black!65},
+  lefttext/.style={anchor=west,align=left},
+  button/.style={draw=black!65,fill=black!5}
+]
+% AI 辅助聊天
+\draw (0,0) rectangle (69,90);
+\fill[black!8] (0,83) rectangle (69,90);
+\draw (0,83) -- (69,83);
+\node[anchor=west,font=\fontsize{10}{12}\selectfont\bfseries] at (3,86.5) {对话 · 用户 A（真人）};
+\node[anchor=east,labeltext] at (65,79.5) {查看交流参考 >};
+\draw[rounded corners=1mm] (4,68) rectangle (51,76);
+\node at (27.5,72) {最近看了什么好书？};
+\path[draw,fill=black!7,rounded corners=1mm] (18,55) rectangle (65,64);
+\node at (41.5,59.5) {最近在读一本科幻小说};
+\draw (4,27) rectangle (65,51);
+\fill[black!5] (4,44) rectangle (65,51);
+\node[lefttext] at (7,47.5) {AI 回复建议（待选择）};
+\node[lefttext,labeltext] at (7,41) {自然日常 / 轻松幽默};
+\draw[dashed,black!35] (7,37.5) -- (62,37.5);
+\node[lefttext,labeltext] at (7,34.8) {1. 这本书最吸引你的地方是？};
+\node[lefttext,labeltext] at (7,29.8) {2. 我也喜欢科幻，推荐哪一本？};
+\draw (4,12) rectangle (48,23);
+\node[lefttext,labeltext] at (7,17.5) {输入或编辑消息……};
+\path[button,fill=black!12] (52,12) rectangle (65,23);
+\node at (58.5,17.5) {发送};
+\node[labeltext,font=\fontsize{7.5}{9}\selectfont] at (34.5,9) {选中建议 → 填入草稿 → 本人发送};
+\fill[black!12] (34.5,0) rectangle (51.75,6);
+\draw (0,6) -- (69,6);
+\foreach \x/\name in {8.625/遇见,25.875/纸条,43.125/对话,60.375/我的}{
+  \node[labeltext] at (\x,3) {\name};
+}
+\node[anchor=north] at (34.5,-2) {（a）AI 辅助聊天页面};
+% 交流参考详情
+\begin{scope}[shift={(77,0)}]
+\draw (0,0) rectangle (69,90);
+\fill[black!8] (0,83) rectangle (69,90);
+\draw (0,83) -- (69,83);
+\node[anchor=west,font=\fontsize{10}{12}\selectfont\bfseries] at (3,86.5) {交流参考 · 用户 A};
+\node[lefttext,labeltext] at (4,79.5) {< 返回对话};
+\path[draw,fill=black!4] (4,69) rectangle (65,76);
+\node at (34.5,72.5) {双方开启后可查看};
+\draw (4,49) rectangle (32,65);
+\draw (37,49) rectangle (65,65);
+\node at (18,60) {消息数量};
+\node[labeltext] at (18,53.5) {我方 / 对方};
+\node at (51,60) {回复情况};
+\node[labeltext] at (51,53.5) {次数 / 频率};
+\draw (4,33) rectangle (65,45);
+\node[lefttext] at (7,41) {互动参考};
+\draw (8,35) rectangle (61,37.5);
+\fill[black!20] (8,35) rectangle (38,37.5);
+\draw (4,14) rectangle (65,29);
+\node[lefttext] at (7,25) {AI 分析摘要（参考）};
+\node[lefttext,labeltext] at (7,18.5) {结合双方互动展示参考信息};
+\node[labeltext,font=\fontsize{7.5}{9}\selectfont] at (34.5,9) {未授权或暂不可用时显示原因};
+\fill[black!12] (34.5,0) rectangle (51.75,6);
+\draw (0,6) -- (69,6);
+\foreach \x/\name in {8.625/遇见,25.875/纸条,43.125/对话,60.375/我的}{
+  \node[labeltext] at (\x,3) {\name};
+}
+\node[anchor=north] at (34.5,-2) {（b）交流参考详情页};
+\end{scope}
+\end{tikzpicture}

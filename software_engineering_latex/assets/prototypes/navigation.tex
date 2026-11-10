@@ -1,0 +1,22 @@
+% 根据现有功能整理的页面结构示意，并非开发前原型记录。
+\begin{tikzpicture}[
+  x=1mm,y=1mm,
+  font=\fontsize{9}{11}\selectfont,
+  every node/.style={align=center,inner sep=1mm},
+  box/.style={draw=black!65,fill=black!3,minimum width=34mm,minimum height=10mm},
+  flow/.style={-{Stealth[length=1.8mm]},draw=black!65,line width=.45pt}
+]
+\node[box] (login) at (18,29) {注册 / 登录};
+\node[box] (profile) at (73,29) {填写个人资料};
+\node[box] (main) at (129,29) {主界面};
+\draw[flow] (login) -- (profile);
+\draw[flow] (profile) -- (main);
+\node[box,minimum height=13mm] (meet) at (18,6.5) {遇见\\推荐与收藏};
+\node[box,minimum height=13mm] (notes) at (55,6.5) {纸条\\发信与回应};
+\node[box,minimum height=13mm] (chat) at (92,6.5) {对话\\消息与 AI 辅助};
+\node[box,minimum height=13mm] (mine) at (129,6.5) {我的\\资料与形象};
+\draw[draw=black!65,line width=.45pt] (main.south) -- (129,18) -- (18,18);
+\foreach \target/\x in {meet/18,notes/55,chat/92,mine/129}{
+  \draw[flow] (\x,18) -- (\target.north);
+}
+\end{tikzpicture}

@@ -1,0 +1,64 @@
+% 低保真线框图；人物、数值与消息均为布局示例。
+\begin{tikzpicture}[
+  x=1mm,y=1mm,line width=.4pt,draw=black!65,
+  font=\fontsize{9}{11}\selectfont,
+  every node/.style={align=center,inner sep=.5mm,text=black},
+  labeltext/.style={font=\fontsize{8}{10}\selectfont,text=black!65},
+  lefttext/.style={anchor=west,align=left},
+  button/.style={draw=black!65,fill=black!5}
+]
+% 遇见
+\draw (0,0) rectangle (69,80);
+\fill[black!8] (0,73) rectangle (69,80);
+\draw (0,73) -- (69,73);
+\node[anchor=west,font=\fontsize{10}{12}\selectfont\bfseries] at (3,76.5) {遇见 · 推荐对象};
+\node[labeltext] at (34.5,69.5) {填写资料后查看推荐};
+\draw (4,24) rectangle (65,66);
+\draw (34.5,55) circle (6);
+\draw (34.5,57) circle (1.9);
+\draw (30.5,51.5) .. controls (31,55) and (38,55) .. (38.5,51.5);
+\node at (34.5,45) {用户 A · 真人};
+\node[labeltext] at (34.5,40.5) {匹配参考：86\%};
+\draw[rounded corners=1mm] (9,32) rectangle (60,37.5);
+\node at (34.5,34.7) {阅读　音乐　旅行};
+\node[labeltext] at (34.5,27.7) {个人简介与推荐依据};
+\path[button] (4,13) rectangle (32,21);
+\path[button,fill=black!12] (37,13) rectangle (65,21);
+\node at (18,17) {跳过};
+\node at (51,17) {喜欢并收藏};
+\node[labeltext,font=\fontsize{7.5}{9}\selectfont] at (34.5,9.2) {收藏后可从“纸条”发起联系};
+\fill[black!12] (0,0) rectangle (17.25,6);
+\draw (0,6) -- (69,6);
+\foreach \x/\name in {8.625/遇见,25.875/纸条,43.125/对话,60.375/我的}{
+  \node[labeltext] at (\x,3) {\name};
+}
+\node[anchor=north] at (34.5,-2) {（a）遇见页面};
+% 纸条
+\begin{scope}[shift={(77,0)}]
+\draw (0,0) rectangle (69,80);
+\fill[black!8] (0,73) rectangle (69,80);
+\draw (0,73) -- (69,73);
+\node[anchor=west,font=\fontsize{10}{12}\selectfont\bfseries] at (3,76.5) {纸条 · 首次联系};
+\path[button,fill=black!12] (4,64) rectangle (33,71);
+\path[button] (36,64) rectangle (65,71);
+\node at (18.5,67.5) {收到的};
+\node at (50.5,67.5) {发出的};
+\draw (4,42) rectangle (65,60);
+\node[lefttext] at (7,56) {来自用户 A · 待回应};
+\node[lefttext,labeltext,text width=54mm] at (7,48.5) {你好，也喜欢科幻小说吗？};
+\draw (4,23) rectangle (65,38);
+\node[lefttext,labeltext] at (7,33) {写下你的回信……};
+\node[lefttext,labeltext] at (7,27) {接受后建立会话};
+\path[button] (4,12) rectangle (24,20);
+\path[button,fill=black!12] (29,12) rectangle (65,20);
+\node at (14,16) {拒绝};
+\node at (47,16) {接受并回信};
+\node[labeltext,font=\fontsize{7.5}{9}\selectfont] at (34.5,9) {发出后显示“等待回应”};
+\fill[black!12] (17.25,0) rectangle (34.5,6);
+\draw (0,6) -- (69,6);
+\foreach \x/\name in {8.625/遇见,25.875/纸条,43.125/对话,60.375/我的}{
+  \node[labeltext] at (\x,3) {\name};
+}
+\node[anchor=north] at (34.5,-2) {（b）纸条回应页面};
+\end{scope}
+\end{tikzpicture}

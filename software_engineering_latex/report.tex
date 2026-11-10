@@ -2,6 +2,7 @@
 % !TeX encoding = UTF-8
 \documentclass[UTF8,fontset=none,zihao=-4,openany]{ctexrep}
 \usepackage{reportstyle}
+\usepackage{needspace} % Keep short subsection headings with their opening text.
 \input{metadata}
 \begin{document}
 \hypersetup{pdftitle={谁能打开你的窗：软件工程项目报告},pdfsubject={低压力社交与AI辅助交流系统},pageanchor=false}
@@ -14,23 +15,24 @@
 \tableofcontents
 \clearpage
 \pagenumbering{arabic}
-% \input{chapters/01-problem}
-% \input{chapters/02-requirements}
-\setcounter{chapter}{2}
-\input{chapters/03-design}
+% 本次仅编译第1章“问题定义”和第2章“需求分析”。
+\input{chapters/01-problem}
+\input{chapters/02-requirements}
+% \setcounter{chapter}{2}
+% \input{chapters/03-design}
 % \input{chapters/04-implementation}
 % \input{chapters/05-summary}
 % \input{chapters/06-reflection}
 \clearpage
-% 本次编译第3章和附录。
-\newcount\ReportAppendixStart
-\ReportAppendixStart=\value{page}
-\input{chapters/appendix}
-\clearpage
-\newcount\ReportAppendixPages
-\ReportAppendixPages=\numexpr\value{page}-\ReportAppendixStart\relax
-\typeout{REPORT-APPENDIX-PAGES=\the\ReportAppendixPages}
-\ifnum\ReportAppendixPages>6
-  \PackageError{report}{The appendix must not exceed 6 pages}{Shorten reference material instead of shrinking the text.}
-\fi
+% 队友的设计附录及其页数检查保留，恢复附录时一并启用。
+% \newcount\ReportAppendixStart
+% \ReportAppendixStart=\value{page}
+% \input{chapters/appendix}
+% \clearpage
+% \newcount\ReportAppendixPages
+% \ReportAppendixPages=\numexpr\value{page}-\ReportAppendixStart\relax
+% \typeout{REPORT-APPENDIX-PAGES=\the\ReportAppendixPages}
+% \ifnum\ReportAppendixPages>6
+%   \PackageError{report}{The appendix must not exceed 6 pages}{Shorten reference material instead of shrinking the text.}
+% \fi
 \end{document}
