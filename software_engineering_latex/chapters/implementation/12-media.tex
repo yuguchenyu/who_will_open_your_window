@@ -1,13 +1,10 @@
-\clearpage
-\subsection{媒体管理与Qwen生图}
-\label{sec:impl-12-media}
-\par\medskip\noindent\textbf{独立资源与后台任务。}
+\subsection*{图片管理与生图}
 头像用于纸条和资料，个人立绘用于聊天舞台，背景仅属于本人场景；默认立绘与六种情绪图可分别上传。\DesignCode{validateMedia()}检查图片签名与字节大小，普通上传不调用模型。历史头像迁移不会把同一张图自动当作新立绘。
 
-当前源码默认生图模型为\DesignCode{qwen-image-2.1-pro}，按配置选择原生多模态协议或兼容图像生成协议，保留非Qwen的图片编辑兼容分支。本轮只使用模拟上游验证请求结构，未据此宣称线上模型已生成过某张图片。
+生图模块默认使用\DesignCode{qwen-image-2.1-pro}。根据接口地址选择Qwen原生协议或兼容协议，其他模型使用图片编辑分支。不同分支共用任务状态和图片校验流程，页面只需提交情绪、授权和请求编号，再查询任务进度。
 
 \begin{table}[H]\centering\small
-\caption{生成任务的状态与保存边界}
+\caption{生成任务的状态与处理}
 \begin{tabularx}{\linewidth}{@{}p{25mm}X@{}}\toprule
 状态 & 处理及可验证结果 \\ \midrule
 running & 需要明确外发同意和本人默认立绘；后台等待不阻塞聊天 \\
@@ -17,7 +14,6 @@ failed & 超时、网络、格式或Alpha失败；保留旧立绘 \\
 discarded & 放弃预览并释放图片内容，不自动再次付费重试 \\ \bottomrule
 \end{tabularx}\end{table}
 
-\par\medskip\noindent\textbf{响应下载与透明校验。}
-Qwen结果由服务端从受限HTTPS云存储地址下载，不向下载请求转发模型密钥，拒绝内部域名、任意主机和重定向。读取过程累计实际字节，不能只信Content-Length。\DesignCode{prepareGeneratedPortrait()}解码PNG、检查真实Alpha并控制最终大小，不把画出来的棋盘格当作透明。
+Qwen返回图片地址后，服务端检查HTTPS协议和云存储域名，再下载图片。下载请求不携带模型密钥，读取时累计实际字节数并检查上限。\DesignCode{prepareGeneratedPortrait()}随后解码PNG、检查Alpha通道并压缩图片，合格结果才会进入预览。
 
-全局同时最多两个生图请求，每账号滚动二十四小时最多十二次，失败计次。预览保存前检查源图摘要与目标版本，防止旧图覆盖新上传；默认超时180秒，不自动重试。技术检查不验证人物一致性和画风质量，最终仍由用户预览确认。
+后台最多同时处理两个生图请求。每个账号在滚动24小时内可提交12次，失败也计入次数，单次等待上限为180秒。用户打开预览并确认后，服务端再次对照参考图和目标槽位。若等待期间已上传新图，系统保留新图并提示旧预览已过期。

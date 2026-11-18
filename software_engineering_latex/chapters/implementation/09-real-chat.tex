@@ -1,8 +1,5 @@
-\clearpage
-\subsection{真人通信与虚拟互动}
-\label{sec:impl-09-real-chat}
-\par\medskip\noindent\textbf{从纸条到会话。}
-\DesignCode{sendRealNote()}验证当前账号已收藏对方、对方允许接收、额度尚可且双方没有阻塞性的待回应纸条。纸条的发送者由登录会话确定，不信任请求体自行声明的账号。收件人通过\DesignCode{respondRealNote()}接受或拒绝，第三方不能代替处理。
+\subsection*{纸条与真人对话}
+用户从收藏列表发出纸条时，\DesignCode{sendRealNote()}检查接收开关、发送额度和待回应纸条。发送者取自登录会话。收件人随后可以接受并回信，也可以拒绝，相关操作由\DesignCode{respondRealNote()}处理。
 
 接受时在同一事务中更新纸条状态、建立双方会话，并把原纸条与回信写成两条初始消息。拒绝只更新纸条状态，不生成可聊天会话。重复接受不应产生第二个会话或第二份首轮消息。
 
@@ -14,7 +11,6 @@
 \draw[reportarrow] (a)--(b);\draw[reportarrow] (b)--(c);
 \end{tikzpicture}\caption{真人联系链路中的身份与写入顺序}\end{figure}
 
-\par\medskip\noindent\textbf{后续消息与轮询显示。}
-\DesignCode{conversation()}检查会话参与者，\DesignCode{sendRealMessage()}再保存消息正文与时间。界面按双方视角渲染发送者身份，并在聊天时约每两秒读取快照；页面隐藏时暂停。这是轮询实现，不是WebSocket推送，也不承诺公网消息固定两秒内显示。
+继续聊天时，\DesignCode{conversation()}先检查请求者是否属于会话，\DesignCode{sendRealMessage()}再写入正文和时间。对话页约每两秒读取一次最新消息，切到其他标签页时暂停。
 
 集成测试使用发送者、收件人和第三方三种账号，覆盖从收藏、纸条接受到双方发送的正常路径，再检查第三方越权、重复纸条和无效输入。模型分析与真人手动投递分离，因此AI等待不应成为阻止用户自行发言的理由。
